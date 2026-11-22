@@ -99,45 +99,54 @@ export class TrafficEngine {
     const densityScale = Math.max(0.42, Math.min(1.3, this.params.lam / 850));
 
     if (this.scenario === 'baseline') {
-      // Active on-street unloading right near Pasar Gegerkalong kiosks (326 m) & ruko zone (162 m)
+      // Active on-street unloading at Pasar Gegerkalong (332 m), northern ruko (162 m), & southern ruko (498 m)
       // Left-Hand Traffic: dir=1 (South) uses lane=-1 (East), dir=-1 (North) uses lane=+1 (West)
-      this.spawnActiveOnStreetBlocker(1, 326, true);
+      this.spawnActiveOnStreetBlocker(1, 332, true);
       this.spawnActiveOnStreetBlocker(-1, 162, false);
+      this.spawnActiveOnStreetBlocker(1, 502, false);
 
-      // Visible bumper-to-bumper queue already forming behind the Pasar bottleneck (Little's Law congested state)
-      const queueCount = Math.round(13 * densityScale);
+      // Visible bumper-to-bumper queue forming behind the Pasar Gegerkalong bottleneck
+      const queueCount = Math.round(14 * densityScale);
       for (let i = 0; i < queueCount; i++) {
-        this.spawnVehicle(1, 315 - i * 5.8, 18 + i * 2.2, -1);
+        this.spawnVehicle(1, 320 - i * 5.8, 18 + i * 2.2, -1);
       }
-      // Upstream platoon approaching from Simpang Girang
-      const upstreamCount = Math.round(11 * densityScale);
+      // Upstream platoon approaching from Simpang Girang (0..220 m)
+      const upstreamCount = Math.round(10 * densityScale);
       for (let i = 0; i < upstreamCount; i++) {
-        const xm = 12 + i * 18.5;
-        if (xm < 315 - queueCount * 5.8 - 8) {
+        const xm = 14 + i * 20;
+        if (xm < 320 - queueCount * 5.8 - 10) {
           this.spawnVehicle(1, xm, 0, -1);
         }
       }
-      // Opposing South -> North stream on West lane (+1)
-      const oppCount = Math.round(8 * densityScale);
+      // Downstream southbound platoon heading from Pasar toward Simpang Hilir (355..615 m)
+      const downstreamCount = Math.round(10 * densityScale);
+      for (let i = 0; i < downstreamCount; i++) {
+        const xm = 362 + i * 24;
+        if (Math.abs(xm - 502) > 10 && xm < CORRIDOR.lengthM - 12) {
+          this.spawnVehicle(1, xm, 0, -1);
+        }
+      }
+      // Opposing South -> North stream from Simpang Hilir toward Simpang Girang on West lane (+1)
+      const oppCount = Math.round(13 * densityScale);
       for (let i = 0; i < oppCount; i++) {
-        const xm = 24 + i * 38;
-        if (Math.abs(xm - 162) > 10) {
+        const xm = 24 + i * 45;
+        if (Math.abs(xm - 162) > 10 && xm < CORRIDOR.lengthM - 12) {
           this.spawnVehicle(-1, xm, 0, 1);
         }
       }
     } else {
-      // Little's Law steady-state seeding (L = lambda * W ≈ 12-13 vehicles at 850/jam, ~5-6 at 350/jam)
-      const totalSteady = Math.max(5, Math.round(13 * densityScale));
-      const mainCount = cfg.twoWay ? Math.max(3, Math.round(totalSteady * 0.65)) : totalSteady;
-      const spacing = 325 / Math.max(1, mainCount);
+      // Little's Law steady-state seeding for full 636 m (L = lambda * W ≈ 21 vehicles at 850/jam, ~9 at 350/jam)
+      const totalSteady = Math.max(8, Math.round(21 * densityScale));
+      const mainCount = cfg.twoWay ? Math.max(5, Math.round(totalSteady * 0.65)) : totalSteady;
+      const spacing = (CORRIDOR.lengthM - 36) / Math.max(1, mainCount);
       for (let i = 0; i < mainCount; i++) {
-        const xm = 16 + i * spacing;
+        const xm = 18 + i * spacing;
         const lane: 1 | -1 = cfg.twoWay ? -1 : i % 2 === 0 ? -1 : 1;
         this.spawnVehicle(mainDir, xm, 0, lane);
       }
       if (cfg.twoWay) {
-        const oppCount = Math.max(2, totalSteady - mainCount);
-        const oppSpacing = 310 / Math.max(1, oppCount);
+        const oppCount = Math.max(3, totalSteady - mainCount);
+        const oppSpacing = (CORRIDOR.lengthM - 44) / Math.max(1, oppCount);
         for (let i = 0; i < oppCount; i++) {
           this.spawnVehicle(-1, 22 + i * oppSpacing, 0, 1);
         }
@@ -294,7 +303,7 @@ export class TrafficEngine {
 
       // Pedestrian crowd friction when no sidewalk exists (Baseline)
       if (!cfg.hasSidewalk) {
-        const inPasarZone = v.xM >= CORRIDOR.pasar.frontStartM - 6 && v.xM <= CORRIDOR.lengthM;
+        const inPasarZone = v.xM >= CORRIDOR.pasar.frontStartM - 6 && v.xM <= CORRIDOR.pasar.hallEndM + 4;
         for (const ped of this.pedestrians) {
           const pedGap = (ped.xM - v.xM) * v.dir;
           if (pedGap > -1.5 && pedGap < 7.0) {
@@ -425,12 +434,15 @@ export class TrafficEngine {
 
   private initPedestrians(): void {
     this.pedestrians = [];
-    for (let i = 0; i < 24; i++) {
-      // Cluster 10 shoppers along Pasar Gegerkalong frontage (312-352 m), 14 along ruko & kos corridor
-      const isPasarCrowd = i < 10;
+    for (let i = 0; i < 36; i++) {
+      // Cluster 12 shoppers around Pasar Gegerkalong (314-370 m), 14 north (12-308 m), 10 south (375-624 m)
+      const isPasarCrowd = i < 12;
+      const isNorth = i >= 12 && i < 26;
       const xM = isPasarCrowd
-        ? 312 + Math.random() * 40
-        : 12 + Math.random() * 295;
+        ? 314 + Math.random() * 56
+        : isNorth
+        ? 12 + Math.random() * 296
+        : 375 + Math.random() * 248;
       this.pedestrians.push({
         id: i + 1,
         xM,
@@ -504,8 +516,14 @@ export class TrafficEngine {
 
     if (willStop) {
       if (!cfg.hasOffstreet) {
-        // 60% of on-street parking/unloading concentrates near Pasar Gegerkalong kiosks (312-348 m)
-        const candidate = Math.random() < 0.6 ? 312 + Math.random() * 36 : 55 + Math.random() * 240;
+        // 55% concentrate at Pasar Gegerkalong (312-364 m), 25% northern ruko, 20% southern ruko toward Hilir
+        const roll = Math.random();
+        const candidate =
+          roll < 0.55
+            ? 312 + Math.random() * 52
+            : roll < 0.8
+            ? 55 + Math.random() * 240
+            : 385 + Math.random() * 210;
         if ((candidate - startM) * dir > 14) {
           stopType = 'onstreet';
           stopTargetM = candidate;
@@ -527,7 +545,6 @@ export class TrafficEngine {
         const canPark = (parkTarget - startM) * dir > 14;
 
         if (canDrop && canPark) {
-          // Southbound (East lane) leans slightly to East drop-off; Northbound (West lane) leans to West parking
           const pickDrop = dir === 1 ? Math.random() < 0.55 : Math.random() < 0.35;
           stopType = pickDrop ? 'dropoff' : 'parking';
           stopTargetM = pickDrop ? dropTarget : parkTarget;
@@ -623,9 +640,9 @@ export class TrafficEngine {
     const spillbackQueue = this.mainSpillbackArrivals.length + this.oppSpillbackArrivals.length;
     let spillbackOriginLabel = 'Simpang Girang';
     if (!cfg.twoWay && this.oneWayDir === -1) {
-      spillbackOriginLabel = 'Arah Pasar / Hilir';
+      spillbackOriginLabel = 'Simpang Hilir';
     } else if (this.oppSpillbackArrivals.length > this.mainSpillbackArrivals.length) {
-      spillbackOriginLabel = 'Arah Pasar / Hilir';
+      spillbackOriginLabel = 'Simpang Hilir';
     }
 
     let losGrade: 'A-B' | 'C-D' | 'E-F' = 'A-B';

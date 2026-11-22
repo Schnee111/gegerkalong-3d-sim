@@ -1,6 +1,6 @@
 export type ScenarioKey = 'baseline' | 'sk1' | 'sk2';
-export type OneWayDirection = 1 | -1; // 1 = Pagi (Girang -> Pasar/Hilir), -1 = Sore (Pasar/Hilir -> Girang)
-export type CameraPresetKey = 'isometric' | 'girang' | 'pasar' | 'topdown';
+export type OneWayDirection = 1 | -1; // 1 = Pagi (Girang -> Hilir), -1 = Sore (Hilir -> Girang)
+export type CameraPresetKey = 'isometric' | 'girang' | 'pasar' | 'hilir' | 'topdown';
 export type VolumePresetKey = 'realPeak' | 'lkm2';
 
 export interface ScenarioConfig {
@@ -18,7 +18,7 @@ export interface ScenarioConfig {
   hasSidewalk: boolean;
   hasOffstreet: boolean;
   hasNoStopSign: boolean;
-  /** Perkiraan kapasitas efektif segmen 3,8 m menurut MKJI/PKJI (smp/jam) */
+  /** Perkiraan kapasitas efektif ruas 3,8 m menurut MKJI/PKJI (smp/jam) */
   effectiveCapacitySmp: number;
   simpyBenchmark: {
     wait: number;
@@ -36,7 +36,7 @@ export interface VehicleProfile {
   maxSpeedMs: number;
   /** Ekivalen Mobil Penumpang (emp) sesuai PKJI/MKJI untuk ruas perkotaan sempit 2/2 TT */
   emp: number;
-  /** Proporsi armada berdasarkan ERI Korlantas/BPS Kota Bandung 2024 & karakteristik koridor UPI-Pasar */
+  /** Proporsi armada berdasarkan ERI Korlantas/BPS Kota Bandung 2024 & koridor UPI-Pasar */
   weight: number;
   palette: number[];
 }
@@ -57,7 +57,7 @@ export interface VolumePreset {
 
 /**
  * Preset volume berbasis data publik & LKM-2 Kelompok 9:
- * - Riil Puncak (850 kend./jam ≈ 475 smp/jam): mengacu limpahan arus jam sibuk pagi dari
+ * - Riil Puncak (850 kend./jam ≈ 474 smp/jam): mengacu limpahan arus jam sibuk pagi dari
  *   Simpang Gegerkalong Girang (5.746 smp/jam; gerbang motor UPI 2.117 smp/jam, Firdaus UPI 2018)
  *   yang masuk ke ruas lokal sempit Jl. Gegerkalong Tengah (3,8 m) dengan komposisi 75% motor
  *   (ERI Korlantas/BPS Kota Bandung 2024).
@@ -68,7 +68,7 @@ export const VOLUME_PRESETS: Record<VolumePresetKey, VolumePreset> = {
     key: 'realPeak',
     label: 'Riil Puncak (850/jam)',
     lam: 850,
-    description: 'Jam sibuk pagi riil Jl. Gegerkalong Tengah (~475 smp/jam; Firdaus UPI 2018 & BPS Bandung 2024)'
+    description: 'Jam sibuk pagi riil Jl. Gegerkalong Tengah (~474 smp/jam; Firdaus UPI 2018 & BPS Bandung 2024)'
   },
   lkm2: {
     key: 'lkm2',
@@ -79,32 +79,33 @@ export const VOLUME_PRESETS: Record<VolumePresetKey, VolumePreset> = {
 };
 
 /**
- * Skala dunia 3D: 1 unit = 1 meter, berbasis koordinat nyata OpenStreetMap API v0.6 (Way 125178979).
- * Sumbu koordinat: +X = Selatan (Girang -> Pasar), +Z = Barat, -Z = Timur, +Y = Atas.
- * Elevasi riil Open-Meteo: 901 m dpl di Simpang Girang (0 m, y = +12 m) turun ke 889 m dpl di Pasar (355 m, y = 0 m).
+ * Skala dunia 3D: 1 unit = 1 meter, berbasis koordinat penuh OpenStreetMap API v0.6 (Way 125178979).
+ * Koridor utuh 636,4 m dari Simpang Jl. Gegerkalong Girang (0 m, 901 m dpl, y = +26 m)
+ * melewati Pasar Gegerkalong di tengah (347-375 m, 889 m dpl, y = +14 m; batas segmen utara 355 m LKM-2)
+ * hingga Simpang Jalan Raya Gegerkalong Hilir (636,4 m, 875 m dpl, y = 0 m).
+ * Sumbu koordinat: +X = Selatan (Girang -> Hilir), +Z = Barat, -Z = Timur, +Y = Atas.
  * Lalu lintas mengikuti standar Indonesia: LAJUR KIRI (Selatan di sisi Timur -Z, Utara di sisi Barat +Z).
  */
 export const CORRIDOR = {
-  lengthM: 355,
-  visualLengthM: 392, // Diperpanjang secara visual melewati gedung los utama Pasar Gegerkalong (375 m)
-  halfLengthM: 177.5,
+  lengthM: 636.4,
+  northSegmentM: 355, // Batas segmen utara (Simpang Girang -> Pasar Gegerkalong) sesuai benchmark SimPy LKM-2
   roadWidthM: 3.8, // Lebar aspal riil 3,8 m (sesuai LKM-2: 3-4 m & OSM Way 125178979)
   laneOffsetZ: 0.82,
   sidewalkWidthM: 1.25,
-  // Diverifikasi bebas tabrakan terhadap bangunan & gang OSM pada foto satelit:
-  // East (-Z) setback 186..214 m memiliki ruang terbuka 5.1-11.9 m (samping Kampus IV UNPAS)
+  // Diverifikasi bebas tabrakan terhadap bangunan & gang OSM pada citra satelit:
+  // East (-Z) setback 186..214 m memiliki ruang terbuka 5,1-11,9 m (samping Kampus IV UNPAS)
   dropoffBay: {
     startM: 186,
     endM: 214,
     bayZ: -3.35
   },
-  // West (+Z) setback 262..296 m memiliki ruang terbuka 7.1-10.7 m (tepat sebelum akses KPAD 308 m & Pasar)
+  // West (+Z) setback 262..296 m memiliki ruang terbuka 7,1-10,7 m (tepat utara akses KPAD 308 m & Pasar)
   parkingLot: {
     startM: 262,
     endM: 296,
     bayZ: 3.65
   },
-  // Lokasi nyata Pasar Gegerkalong (Jl. Gegerkalong Tengah No. 35A):
+  // Lokasi nyata Pasar Gegerkalong (Jl. Gegerkalong Tengah No. 35A) di tengah koridor:
   // Kios muka 318..343 m, lorong kanopi biru 347 m (OSM Way 566513488), los utama 352..375 m (OSM Way 522195464)
   pasar: {
     frontStartM: 318,
@@ -121,7 +122,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     code: '0',
     shortName: 'Baseline',
     title: 'Kondisi Eksisting (Dua Arah + Parkir Badan Jalan)',
-    subtitle: 'Ruas sempit 3,8 m tanpa trotoar, hambatan samping 20% (30-50 dtk)',
+    subtitle: 'Ruas utuh 636 m (lebar 3,8 m) tanpa trotoar, hambatan samping 20% (30-50 dtk)',
     defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 20, stopDur: 40 },
     twoWay: true,
     hasSidewalk: false,
@@ -130,14 +131,14 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     effectiveCapacitySmp: 440,
     simpyBenchmark: { wait: 404, maxq: 85, thr: 322 },
     insight:
-      'Kendaraan parkir dan bongkar muat di badan jalan menyempitkan lebar efektif ruas 3,8 m. Arus dua arah (lajur kiri) saling tertahan di depan kios dan Pasar Gegerkalong, memicu luberan antrean hingga Simpang Girang.'
+      'Parkir dan bongkar muat di badan jalan (terutama sekitar Pasar Gegerkalong di tengah koridor) menyempitkan lebar efektif ruas 3,8 m. Arus dua arah lajur kiri saling tertahan hingga antrean meluber ke Simpang Girang.'
   },
   sk1: {
     key: 'sk1',
     code: '1',
     shortName: 'Drop-Off & Parkir',
     title: 'Skenario 1 (Zona Drop-Off & Parkir Luar Badan Jalan)',
-    subtitle: 'Trotoar Timur aktif, teluk drop-off (186-214 m) & parkir khusus (262-296 m), rambu S coret',
+    subtitle: 'Trotoar Timur aktif penuh, teluk drop-off (186-214 m) & parkir khusus (262-296 m), rambu S coret',
     defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 8, stopDur: 25 },
     twoWay: true,
     hasSidewalk: true,
@@ -146,14 +147,14 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     effectiveCapacitySmp: 820,
     simpyBenchmark: { wait: 8, maxq: 9, thr: 358 },
     insight:
-      'Kendaraan singgah diarahkan ke teluk drop-off sisi Timur (186-214 m) dan kantong parkir khusus sisi Barat sebelum Pasar (262-296 m). Badan jalan bebas hambatan samping, trotoar melindungi pejalan kaki, dan waktu tunggu anjlok tajam.'
+      'Kendaraan singgah diarahkan ke teluk drop-off sisi Timur (186-214 m) dan kantong parkir khusus sisi Barat sebelum Pasar (262-296 m). Badan jalan bebas hambatan samping dari Simpang Girang hingga Simpang Hilir.'
   },
   sk2: {
     key: 'sk2',
     code: '2',
     shortName: 'Satu Arah Bergantian',
     title: 'Skenario 2 (Rekayasa Satu Arah Bergantian Jam Sibuk)',
-    subtitle: 'Kombinasi Skenario 1 + satu arah Pagi biru (Girang → Pasar) / Sore oranye (Pasar → Girang)',
+    subtitle: 'Kombinasi Skenario 1 + satu arah Pagi biru (Girang → Hilir) / Sore oranye (Hilir → Girang)',
     defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 4, stopDur: 20 },
     twoWay: false,
     hasSidewalk: true,
@@ -162,7 +163,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     effectiveCapacitySmp: 1120,
     simpyBenchmark: { wait: 3, maxq: 6, thr: 361 },
     insight:
-      'Seluruh lebar efektif 3,8 m difokuskan untuk satu arah arus dominan jam sibuk. Konflik berpapasan pada tikungan sempit Gegerkalong Tengah hilang sepenuhnya sehingga kapasitas keluar dan kelancaran mencapai titik optimal.'
+      'Seluruh lebar efektif 3,8 m dari Simpang Girang hingga Simpang Hilir difokuskan untuk satu arah arus dominan jam sibuk. Konflik berpapasan hilang sepenuhnya sehingga kapasitas keluar mencapai titik optimal.'
   }
 };
 
@@ -170,7 +171,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
  * Komposisi armada mengacu pada data ERI Korlantas Polri / BPS Kota Bandung (2024):
  * ~75,4% sepeda motor, ~20,1% mobil penumpang/angkot, ~4,5% kendaraan barang.
  * Kecepatan bebas ruas lokal sempit 3,8 m terkalibrasi pada 5,8-8,2 m/s (21-30 km/jam),
- * setara waktu tempuh normal ~50-60 detik untuk 355 m (selaras LKM-2).
+ * setara ~50-60 detik untuk segmen utara 355 m (selaras LKM-2) & ~88 detik untuk ruas penuh 636 m.
  */
 export const VEHICLE_PROFILES: VehicleProfile[] = [
   {
@@ -215,7 +216,7 @@ export const VEHICLE_PROFILES: VehicleProfile[] = [
   }
 ];
 
-/** Rata-rata tertimbang emp per kendaraan fisik (0.75*0.4 + 0.16*1 + 0.05*1 + 0.04*1.2 = 0.558 smp/kend.) */
+/** Rata-rata tertimbang emp per kendaraan fisik (0,558 smp/kend.) */
 export const AVERAGE_EMP = VEHICLE_PROFILES.reduce((sum, p) => sum + p.weight * p.emp, 0);
 
 export const SIMPY_BENCHMARK_SERIES = {
@@ -225,29 +226,41 @@ export const SIMPY_BENCHMARK_SERIES = {
   thr: { label: 'Kendaraan Keluar (/jam)', values: [322, 358, 361], unit: 'kend./jam' }
 } as const;
 
+/**
+ * Preset kamera terkalibrasi pada koordinat penuh 636,4 m (berpusat di x = 0 dekat Pasar):
+ * - Simpang Girang (Utara, 0 m): x ≈ -315, y = 26 m
+ * - Pasar Gegerkalong (Tengah, 347-375 m): x ≈ +35, y = 14 m
+ * - Simpang Hilir (Selatan, 636 m): x ≈ +315, y = 0 m
+ */
 export const CAMERA_PRESETS: Record<CameraPresetKey, CameraPreset> = {
   isometric: {
     key: 'isometric',
     label: 'Isometrik',
-    position: [-58, 72, 86],
-    target: [28, 4, 2]
+    position: [-54, 96, 146],
+    target: [24, 14, 2]
   },
   girang: {
     key: 'girang',
     label: 'Simpang Girang',
-    position: [-222, 54, 62],
-    target: [-135, 11, -4]
+    position: [-372, 74, 78],
+    target: [-275, 25, -8]
   },
   pasar: {
     key: 'pasar',
     label: 'Pasar & Parkir',
-    position: [104, 58, 122],
-    target: [162, 1, 20]
+    position: [-26, 68, 128],
+    target: [34, 14, 18]
+  },
+  hilir: {
+    key: 'hilir',
+    label: 'Simpang Hilir',
+    position: [262, 62, 102],
+    target: [315, 1, 6]
   },
   topdown: {
     key: 'topdown',
     label: 'Denah Peta OSM',
-    position: [12, 540, 26],
-    target: [12, 4, 0]
+    position: [0, 880, 44],
+    target: [0, 12, 0]
   }
 };
