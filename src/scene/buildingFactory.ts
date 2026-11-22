@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   createLeafClusterTexture,
   createSignTexture,
@@ -35,6 +36,42 @@ const clayRoofMaps = loadClayRoofPbr();
 const greyRoofMaps = loadGreyRoofPbr();
 const corrugatedMaps = loadCorrugatedPbr();
 const storefrontInterior = createStorefrontInteriorTexture();
+
+const sideWallMatCache = new Map<number, THREE.MeshStandardMaterial>();
+const trimMatCache = new Map<number, THREE.MeshStandardMaterial>();
+const awningMatCache = new Map<string, THREE.MeshStandardMaterial>();
+const facadeMatCache = new Map<string, THREE.MeshStandardMaterial>();
+
+function pushTranslatedBox(
+  target: THREE.BufferGeometry[],
+  sx: number,
+  sy: number,
+  sz: number,
+  px: number,
+  py: number,
+  pz: number
+): void {
+  const geo = new THREE.BoxGeometry(sx, sy, sz);
+  geo.translate(px, py, pz);
+  target.push(geo);
+}
+
+function addMergedMesh(
+  parent: THREE.Object3D,
+  geos: THREE.BufferGeometry[],
+  mat: THREE.Material,
+  castShadow = false,
+  receiveShadow = false
+): void {
+  if (geos.length === 0) return;
+  const merged = mergeGeometries(geos, false);
+  for (const g of geos) g.dispose();
+  if (!merged) return;
+  const mesh = new THREE.Mesh(merged, mat);
+  mesh.castShadow = castShadow;
+  mesh.receiveShadow = receiveShadow;
+  parent.add(mesh);
+}
 
 const sharedMaterials = {
   frame: new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.4, metalness: 0.42 }),
@@ -132,19 +169,35 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
   const f = spec.facingDir;
   const frontZ = f * (d / 2);
 
-  // Weathered Bandung plaster for side, rear, and structural walls
-  const sideWallMat = new THREE.MeshStandardMaterial({
-    color: blendTint(spec.wallHex, 0.45),
-    map: weatheredWallMaps.map,
-    normalMap: weatheredWallMaps.normalMap,
-    normalScale: new THREE.Vector2(0.45, 0.45),
-    roughness: 0.88
-  });
-  const trimMat = new THREE.MeshStandardMaterial({
-    color: spec.trimHex,
-    map: weatheredWallMaps.map,
-    roughness: 0.78
-  });
+  // Cached Weathered Bandung plaster for side, rear, and structural walls
+  let sideWallMat = sideWallMatCache.get(spec.wallHex);
+  if (!sideWallMat) {
+    sideWallMat = new THREE.MeshStandardMaterial({
+      color: blendTint(spec.wallHex, 0.45),
+      map: weatheredWallMaps.map,
+      normalMap: weatheredWallMaps.normalMap,
+      normalScale: new THREE.Vector2(0.45, 0.45),
+      roughness: 0.88
+    });
+    sideWallMatCache.set(spec.wallHex, sideWallMat);
+  }
+
+  let trimMat = trimMatCache.get(spec.trimHex);
+  if (!trimMat) {
+    trimMat = new THREE.MeshStandardMaterial({
+      color: spec.trimHex,
+      map: weatheredWallMaps.map,
+      roughness: 0.78
+    });
+    trimMatCache.set(spec.trimHex, trimMat);
+  }
+
+  const concreteGeos: THREE.BufferGeometry[] = [];
+  const trimGeos: THREE.BufferGeometry[] = [];
+  const railingGeos: THREE.BufferGeometry[] = [];
+  const glassGeos: THREE.BufferGeometry[] = [];
+  const frameGeos: THREE.BufferGeometry[] = [];
+  const acGeos: THREE.BufferGeometry[] = [];
 
   // Main building volume (weathered plaster sides/back)
   const body = new THREE.Mesh(new THREE.BoxGeometry(w, totalH, d), sideWallMat);
@@ -153,19 +206,24 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
   body.receiveShadow = true;
   g.add(body);
 
-  // Photorealistic Front Elevation Plane (repeated cleanly for wide multi-bay rukos)
+  // Photorealistic Front Elevation Plane (cached by facadeKind, repX, repY, wallHex)
   const facadeKind = pickRukoFacadeKind(spec);
   const repX = Math.max(1, Math.round(w / 9.2));
   const repY = spec.floors >= 3 ? 1.45 : 1;
-  const facadeTex = loadFacadeTexture(facadeKind, repX, repY);
-  const facadeMat = new THREE.MeshStandardMaterial({
-    map: facadeTex,
-    color: blendTint(spec.wallHex, facadeKind === 'ruko' ? 0.22 : 0.1),
-    normalMap: weatheredWallMaps.normalMap,
-    normalScale: new THREE.Vector2(0.18, 0.18),
-    roughness: 0.82,
-    metalness: 0.04
-  });
+  const facadeKey = `${facadeKind}_${repX}_${repY}_${spec.wallHex}`;
+  let facadeMat = facadeMatCache.get(facadeKey);
+  if (!facadeMat) {
+    const facadeTex = loadFacadeTexture(facadeKind, repX, repY);
+    facadeMat = new THREE.MeshStandardMaterial({
+      map: facadeTex,
+      color: blendTint(spec.wallHex, facadeKind === 'ruko' ? 0.22 : 0.1),
+      normalMap: weatheredWallMaps.normalMap,
+      normalScale: new THREE.Vector2(0.18, 0.18),
+      roughness: 0.82,
+      metalness: 0.04
+    });
+    facadeMatCache.set(facadeKey, facadeMat);
+  }
 
   const facadePlane = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.12, totalH - 0.1), facadeMat);
   facadePlane.position.set(0, totalH / 2, frontZ + f * 0.018);
@@ -173,46 +231,26 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
   facadePlane.receiveShadow = true;
   g.add(facadePlane);
 
-  // Deep concrete foundation skirt so downhill corners never float on Bandung Utara slopes
-  const foundation = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 1.4, d + 0.04), sharedMaterials.concrete);
-  foundation.position.set(0, -0.7, 0);
-  g.add(foundation);
+  // Deep concrete foundation skirt + compact front threshold step
+  pushTranslatedBox(concreteGeos, w + 0.04, 1.4, d + 0.04, 0, -0.7, 0);
+  pushTranslatedBox(concreteGeos, w + 0.04, 0.22, 0.2, 0, 0.11, frontZ + f * 0.1);
 
-  // Compact front threshold step (stops behind concrete gutter)
-  const terrace = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.22, 0.2), sharedMaterials.concrete);
-  terrace.position.set(0, 0.11, frontZ + f * 0.1);
-  terrace.receiveShadow = true;
-  g.add(terrace);
-
-  // 3D Structural Corner Pilasters (frame the photographic facade with real shadow depth)
+  // 3D Structural Corner Pilasters
   for (const px of [-w / 2 + 0.18, w / 2 - 0.18]) {
-    const pilaster = new THREE.Mesh(new THREE.BoxGeometry(0.36, totalH + 0.05, 0.18), trimMat);
-    pilaster.position.set(px, totalH / 2, frontZ + f * 0.04);
-    pilaster.castShadow = true;
-    pilaster.receiveShadow = true;
-    g.add(pilaster);
+    pushTranslatedBox(trimGeos, 0.36, totalH + 0.05, 0.18, px, totalH / 2, frontZ + f * 0.04);
   }
 
-  // Horizontal concrete slab drip ledges between floors (cast real sunlight shadow across facade)
+  // Horizontal concrete slab drip ledges between floors
   for (let fl = 1; fl <= spec.floors; fl++) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, 0.18, d + 0.22), sharedMaterials.concrete);
-    band.position.y = fl * floorH;
-    band.castShadow = true;
-    band.receiveShadow = true;
-    g.add(band);
+    pushTranslatedBox(concreteGeos, w + 0.16, 0.18, d + 0.22, 0, fl * floorH, 0);
   }
 
-  // Side-wall recessed windows so side views look genuinely architectural
+  // Side-wall recessed windows
   for (const sideX of [-w / 2, w / 2]) {
     const sideDir = sideX > 0 ? 1 : -1;
     for (let fl = 1; fl < spec.floors; fl++) {
-      const sw = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.25, 1.1), sharedMaterials.glass);
-      sw.position.set(sideX + sideDir * 0.02, fl * floorH + 1.65, f * (d * 0.18));
-      g.add(sw);
-
-      const sFrame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.36, 1.22), sharedMaterials.frame);
-      sFrame.position.set(sideX + sideDir * 0.01, fl * floorH + 1.65, f * (d * 0.18));
-      g.add(sFrame);
+      pushTranslatedBox(glassGeos, 0.1, 1.25, 1.1, sideX + sideDir * 0.02, fl * floorH + 1.65, f * (d * 0.18));
+      pushTranslatedBox(frameGeos, 0.14, 1.36, 1.22, sideX + sideDir * 0.01, fl * floorH + 1.65, f * (d * 0.18));
     }
   }
 
@@ -230,6 +268,7 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
     spec.signAccent
   );
   const signW = Math.min(w * 0.86, 9.0);
+  const signFaceMat = new THREE.MeshBasicMaterial({ map: signTex });
   const signMesh = new THREE.Mesh(
     new THREE.BoxGeometry(signW, 0.78, 0.14),
     [
@@ -237,8 +276,8 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
       sharedMaterials.steelDark,
       sharedMaterials.steelDark,
       sharedMaterials.steelDark,
-      f === 1 ? new THREE.MeshBasicMaterial({ map: signTex }) : sharedMaterials.steelDark,
-      f === -1 ? new THREE.MeshBasicMaterial({ map: signTex }) : sharedMaterials.steelDark
+      f === 1 ? signFaceMat : sharedMaterials.steelDark,
+      f === -1 ? signFaceMat : sharedMaterials.steelDark
     ]
   );
   signMesh.position.set(0, floorH - 0.12, frontZ + f * 0.1);
@@ -247,22 +286,21 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
 
   // Compact high-mounted blade sign (stays behind road curb envelope)
   if (spec.hasBladeSign) {
-    const blade = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 1.25, 0.46),
-      new THREE.MeshBasicMaterial({ map: signTex })
-    );
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.25, 0.46), signFaceMat);
     blade.position.set(w / 2 - 0.38, floorH + 1.38, frontZ + f * 0.25);
     blade.castShadow = true;
     g.add(blade);
   }
 
-  // Cantilevered wall-mounted awning canopy (no ground poles that would intrude onto the narrow road)
+  // Cantilevered wall-mounted awning canopy (cached material by awningHex)
   if (facadeKind !== 'warung') {
-    const awningTex = createStripedAwningTexture(spec.awningHex, '#f8fafc');
-    const awning = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 0.9, 0.07, 0.44),
-      new THREE.MeshStandardMaterial({ map: awningTex, roughness: 0.72 })
-    );
+    let awningMat = awningMatCache.get(spec.awningHex);
+    if (!awningMat) {
+      const awningTex = createStripedAwningTexture(spec.awningHex, '#f8fafc');
+      awningMat = new THREE.MeshStandardMaterial({ map: awningTex, roughness: 0.72 });
+      awningMatCache.set(spec.awningHex, awningMat);
+    }
+    const awning = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, 0.07, 0.44), awningMat);
     awning.position.set(0, floorH - 0.52, frontZ + f * 0.22);
     awning.rotation.x = f * 0.2;
     awning.castShadow = true;
@@ -281,44 +319,28 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
     g.add(vitrine);
   }
 
-  // Slim cantilevered upper-floor balcony slab + railing + AC condenser (stays clear of road envelope)
+  // Slim cantilevered upper-floor balcony slab + railing + AC condenser (batched per ruko)
   for (let fl = 1; fl < spec.floors; fl++) {
     const baseY = fl * floorH;
     const balcW = w * 0.52;
     const balcX = w * 0.18;
 
-    const balc = new THREE.Mesh(new THREE.BoxGeometry(balcW, 0.15, 0.32), sharedMaterials.concrete);
-    balc.position.set(balcX, baseY + 0.36, frontZ + f * 0.16);
-    balc.castShadow = true;
-    g.add(balc);
-
-    const railTop = new THREE.Mesh(new THREE.BoxGeometry(balcW, 0.05, 0.05), sharedMaterials.railing);
-    railTop.position.set(balcX, baseY + 1.12, frontZ + f * 0.3);
-    g.add(railTop);
+    pushTranslatedBox(concreteGeos, balcW, 0.15, 0.32, balcX, baseY + 0.36, frontZ + f * 0.16);
+    pushTranslatedBox(railingGeos, balcW, 0.05, 0.05, balcX, baseY + 1.12, frontZ + f * 0.3);
 
     const railPosts = Math.max(4, Math.floor(balcW / 0.95));
     for (let rp = 0; rp <= railPosts; rp++) {
       const rx = balcX - balcW / 2 + (rp / railPosts) * balcW;
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.72, 0.034), sharedMaterials.railing);
-      post.position.set(rx, baseY + 0.76, frontZ + f * 0.3);
-      g.add(post);
+      pushTranslatedBox(railingGeos, 0.034, 0.72, 0.034, rx, baseY + 0.76, frontZ + f * 0.3);
     }
 
-    const ac = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.48, 0.24), sharedMaterials.acUnit);
-    ac.position.set(balcX + balcW * 0.36, baseY + 0.74, frontZ + f * 0.16);
-    ac.castShadow = true;
-    g.add(ac);
+    pushTranslatedBox(acGeos, 0.68, 0.48, 0.24, balcX + balcW * 0.36, baseY + 0.74, frontZ + f * 0.16);
   }
 
   // Varied architectural roof silhouettes (Poly Haven real scanned clay/dark tiles & spandek)
   if (spec.roofType === 'flat-parapet') {
-    const p1 = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, 0.82, d + 0.16), trimMat);
-    p1.position.y = totalH + 0.41;
-    p1.castShadow = true;
-    g.add(p1);
-    const pCrown = new THREE.Mesh(new THREE.BoxGeometry(w * 0.56, 0.62, 0.36), trimMat);
-    pCrown.position.set(0, totalH + 1.12, frontZ);
-    g.add(pCrown);
+    pushTranslatedBox(trimGeos, w + 0.16, 0.82, d + 0.16, 0, totalH + 0.41, 0);
+    pushTranslatedBox(trimGeos, w * 0.56, 0.62, 0.36, 0, totalH + 1.12, frontZ);
   } else if (spec.roofType === 'spandek-slope') {
     const slope = new THREE.Mesh(new THREE.BoxGeometry(w + 0.4, 0.14, d + 1.2), sharedMaterials.spandekRoof);
     slope.position.set(0, totalH + 0.82, 0);
@@ -342,10 +364,15 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
     roof.receiveShadow = true;
     g.add(roof);
 
-    const ridge = new THREE.Mesh(new THREE.BoxGeometry(w + 0.36, 0.24, 0.3), sharedMaterials.concrete);
-    ridge.position.y = totalH + roofH;
-    g.add(ridge);
+    pushTranslatedBox(concreteGeos, w + 0.36, 0.24, 0.3, 0, totalH + roofH, 0);
   }
+
+  addMergedMesh(g, concreteGeos, sharedMaterials.concrete, true, true);
+  addMergedMesh(g, trimGeos, trimMat, true, true);
+  addMergedMesh(g, railingGeos, sharedMaterials.railing, false, false);
+  addMergedMesh(g, glassGeos, sharedMaterials.glass, false, false);
+  addMergedMesh(g, frameGeos, sharedMaterials.frame, false, false);
+  addMergedMesh(g, acGeos, sharedMaterials.acUnit, true, false);
 
   if (spec.floors >= 3) {
     const tank = createWaterTank(spec.floors % 2 === 0 ? 'blue' : 'orange');
@@ -355,6 +382,19 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
 
   return g;
 }
+
+const kosSideWallMat = new THREE.MeshStandardMaterial({
+  color: 0xeae4d8,
+  map: weatheredWallMaps.map,
+  normalMap: weatheredWallMaps.normalMap,
+  normalScale: new THREE.Vector2(0.42, 0.42),
+  roughness: 0.88
+});
+const kosAccentWallMat = new THREE.MeshStandardMaterial({
+  color: 0x64748b,
+  map: weatheredWallMaps.map,
+  roughness: 0.84
+});
 
 /**
  * Photorealistic 4-Story UPI Student Kos (Jl. Gegerkalong Tengah):
@@ -368,76 +408,57 @@ export function createDetailedKosBuilding(w: number, d: number, floors = 4): THR
   const floorH = 3.05;
   const totalH = floors * floorH;
 
-  const sideWallMat = new THREE.MeshStandardMaterial({
-    color: 0xeae4d8,
-    map: weatheredWallMaps.map,
-    normalMap: weatheredWallMaps.normalMap,
-    normalScale: new THREE.Vector2(0.42, 0.42),
-    roughness: 0.88
-  });
-  const accentWallMat = new THREE.MeshStandardMaterial({
-    color: 0x64748b,
-    map: weatheredWallMaps.map,
-    roughness: 0.84
-  });
+  const concreteGeos: THREE.BufferGeometry[] = [];
+  const accentGeos: THREE.BufferGeometry[] = [];
+  const railingGeos: THREE.BufferGeometry[] = [];
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(w, totalH, d), sideWallMat);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, totalH, d), kosSideWallMat);
   body.position.y = totalH / 2;
   body.castShadow = true;
   body.receiveShadow = true;
   g.add(body);
 
-  const kosFound = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 1.5, d + 0.06), sharedMaterials.concrete);
-  kosFound.position.y = -0.75;
-  g.add(kosFound);
+  pushTranslatedBox(concreteGeos, w + 0.06, 1.5, d + 0.06, 0, -0.75, 0);
 
   // Photorealistic 4-story Kos Front Elevation
   const kosRepX = Math.max(1, Math.round((w - 3.2) / 17.5));
-  const kosTex = loadFacadeTexture('kos', kosRepX, 1);
-  const kosFacadeMat = new THREE.MeshStandardMaterial({
-    map: kosTex,
-    normalMap: weatheredWallMaps.normalMap,
-    normalScale: new THREE.Vector2(0.18, 0.18),
-    roughness: 0.82
-  });
+  const kosKey = `kos_${kosRepX}`;
+  let kosFacadeMat = facadeMatCache.get(kosKey);
+  if (!kosFacadeMat) {
+    const kosTex = loadFacadeTexture('kos', kosRepX, 1);
+    kosFacadeMat = new THREE.MeshStandardMaterial({
+      map: kosTex,
+      normalMap: weatheredWallMaps.normalMap,
+      normalScale: new THREE.Vector2(0.18, 0.18),
+      roughness: 0.82
+    });
+    facadeMatCache.set(kosKey, kosFacadeMat);
+  }
   const kosFront = new THREE.Mesh(new THREE.PlaneGeometry(w - 3.3, totalH - 0.1), kosFacadeMat);
   kosFront.position.set(-1.6, totalH / 2, d / 2 + 0.02);
   kosFront.receiveShadow = true;
   g.add(kosFront);
 
-  // Flush side stairwell tower (stays aligned within main building front plane)
-  const stairTower = new THREE.Mesh(new THREE.BoxGeometry(3.2, totalH + 1.8, 3.6), accentWallMat);
-  stairTower.position.set(w / 2 - 1.5, (totalH + 1.8) / 2, d / 2 - 1.72);
-  stairTower.castShadow = true;
-  g.add(stairTower);
+  // Flush side stairwell tower + structural bay pilasters + parapet (batched into 1 accent mesh)
+  pushTranslatedBox(accentGeos, 3.2, totalH + 1.8, 3.6, w / 2 - 1.5, (totalH + 1.8) / 2, d / 2 - 1.72);
 
-  // Slim 3D structural bay pilasters & upper-floor balcony slabs + railings (never intrude into gutter/road)
   const bays = Math.max(3, Math.floor((w - 3.2) / 5.5));
   const bayW = (w - 3.2) / bays;
   for (let b = 0; b <= bays; b++) {
     const px = -w / 2 + b * bayW;
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.24, totalH, 0.2), accentWallMat);
-    fin.position.set(px, totalH / 2, d / 2 + 0.08);
-    fin.castShadow = true;
-    g.add(fin);
+    pushTranslatedBox(accentGeos, 0.24, totalH, 0.2, px, totalH / 2, d / 2 + 0.08);
   }
+  pushTranslatedBox(accentGeos, w + 0.2, 0.95, d + 0.2, 0, totalH + 0.48, 0);
 
   for (let fl = 1; fl < floors; fl++) {
     const y = fl * floorH;
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(w - 3.0, 0.18, 0.34), sharedMaterials.concrete);
-    slab.position.set(-1.5, y, d / 2 + 0.16);
-    slab.castShadow = true;
-    g.add(slab);
-
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(w - 3.2, 0.06, 0.06), sharedMaterials.railing);
-    rail.position.set(-1.6, y + 0.9, d / 2 + 0.31);
-    g.add(rail);
+    pushTranslatedBox(concreteGeos, w - 3.0, 0.18, 0.34, -1.5, y, d / 2 + 0.16);
+    pushTranslatedBox(railingGeos, w - 3.2, 0.06, 0.06, -1.6, y + 0.9, d / 2 + 0.31);
   }
 
-  const parapet = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.95, d + 0.2), accentWallMat);
-  parapet.position.y = totalH + 0.48;
-  parapet.castShadow = true;
-  g.add(parapet);
+  addMergedMesh(g, concreteGeos, sharedMaterials.concrete, true, true);
+  addMergedMesh(g, accentGeos, kosAccentWallMat, true, true);
+  addMergedMesh(g, railingGeos, sharedMaterials.railing, false, false);
 
   const tank1 = createWaterTank('blue');
   tank1.position.set(-w * 0.28, totalH + 0.95, -d * 0.15);
