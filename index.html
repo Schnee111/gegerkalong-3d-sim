@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simulasi 3D Jalan Gegerkalong Tengah (355 m) | Kelompok 9 MSTR-UPI</title>
+  <title>Simulasi 3D Jalan Gegerkalong Tengah (636 m · Girang → Pasar → Hilir) | Kelompok 9 MSTR-UPI</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%238b1e24'/%3E%3Cpath d='M10 6h12v20H10z' fill='%23334155'/%3E%3Cpath d='M16 8v4m0 4v4m0 4v2' stroke='%23f8fafc' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,7 +18,7 @@
 
     <header class="studio-topbar">
       <div class="title-plaque">
-        <h1>Jl. Gegerkalong Tengah · Segmen Utara (355 m)</h1>
+        <h1>Jl. Gegerkalong Tengah (636 m · Girang → Pasar → Hilir)</h1>
         <div class="title-meta">
           <span>Kelompok 9 · MSTR-Transportasi FPMIPA UPI</span>
           <span class="clock-pill" id="simClock">07:00:00</span>
@@ -34,6 +34,7 @@
           <button type="button" class="tool-btn is-active" data-camera="isometric" aria-pressed="true">Isometrik</button>
           <button type="button" class="tool-btn" data-camera="girang" aria-pressed="false">Simpang Girang</button>
           <button type="button" class="tool-btn" data-camera="pasar" aria-pressed="false">Pasar</button>
+          <button type="button" class="tool-btn" data-camera="hilir" aria-pressed="false">Simpang Hilir</button>
           <button type="button" class="tool-btn" data-camera="topdown" aria-pressed="false">Denah OSM</button>
         </div>
 
@@ -78,10 +79,10 @@
 
         <div id="oneWayControls" class="dir-switch" role="group" aria-label="Arah jam sibuk" hidden>
           <button type="button" class="tool-btn is-active" data-oneway="1" aria-pressed="true">
-            <span class="dir-dot pagi"></span>Pagi (Girang → Pasar)
+            <span class="dir-dot pagi"></span>Pagi (Girang → Hilir)
           </button>
           <button type="button" class="tool-btn" data-oneway="-1" aria-pressed="false">
-            <span class="dir-dot sore"></span>Sore (Pasar → Girang)
+            <span class="dir-dot sore"></span>Sore (Hilir → Girang)
           </button>
         </div>
       </div>
@@ -204,8 +205,8 @@
           <h2>Sumber Data &amp; Tim</h2>
         </div>
         <ul class="source-list">
-          <li><strong>Topologi &amp; Elevasi:</strong> OpenStreetMap (Way 125178979, Pasar No. 35A, KPAD, UNPAS, Masjid Baiturahman) &amp; Open-Meteo DEM (901 → 889 m dpl).</li>
-          <li><strong>Kalibrasi Volume:</strong> Firdaus UPI (2018), ERI Korlantas/BPS Kota Bandung (2024: 75% motor), MKJI/PKJI lajur kiri 3,8 m, &amp; LKM-2 SimPy.</li>
+          <li><strong>Topologi &amp; Elevasi (636 m penuh):</strong> OpenStreetMap (Way 125178979: Simpang Girang → Pasar No. 35A [355 m] → Simpang Jl. Gegerkalong Hilir [636 m], KPAD, UNPAS, Masjid Baiturahman, Kantor Pos) &amp; Open-Meteo DEM (901 → 889 → 875 m dpl).</li>
+          <li><strong>Kalibrasi Volume:</strong> Firdaus UPI (2018), ERI Korlantas/BPS Kota Bandung (2024: 75% motor), MKJI/PKJI lajur kiri 3,8 m, &amp; benchmark SimPy LKM-2 (segmen utara 355 m).</li>
           <li><strong>Kelompok 9 MSTR FPMIPA UPI:</strong> Datuk Daneswara R.S., Faisal Nur Qolbi, Muhammad Daffa Maarif, Muhammad Bintang E.D., Hafidz Tantowi.</li>
         </ul>
       </div>

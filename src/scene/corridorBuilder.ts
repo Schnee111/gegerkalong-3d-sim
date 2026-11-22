@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   OSM_BG_BUILDINGS,
   OSM_FRONT_BUILDINGS,
@@ -96,14 +97,19 @@ const PASAR_FRONT_PRESETS: ShopPreset[] = [
   { name: 'KIOS BUAH & LAUK SEGAR', sub: 'Pasar Rakyat Gegerkalong', bg: '#9a3412', fg: '#fffbeb', accent: '#fde047', awning: '#b45309', wall: 0xe7dfd1, trim: 0x78350f, roof: 'spandek-slope', porch: true }
 ];
 
+const HILIR_PRESETS: ShopPreset[] = [
+  { name: 'INDOMARET GEGERKALONG', sub: 'Simpang Jl. Gegerkalong Hilir', bg: '#1d4ed8', fg: '#ffffff', accent: '#facc15', awning: '#dc2626', wall: 0xf4f4f0, trim: 0x1e3a8a, roof: 'flat-parapet', blade: true },
+  { name: 'ALFAMART GEGERKALONG', sub: 'Jl. Gegerkalong Hilir · 24 Jam', bg: '#b91c1c', fg: '#ffffff', accent: '#facc15', awning: '#1d4ed8', wall: 0xf4f4f0, trim: 0x991b1b, roof: 'flat-parapet', blade: true }
+];
+
 export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   const worldGroup = new THREE.Group();
   scene.add(worldGroup);
 
-  const visLen = CORRIDOR.visualLengthM;
+  const visLen = CORRIDOR.lengthM;
 
-  // 1. Sloping Bandung Utara Terrain (901 m dpl at Simpang Girang -> 889 m dpl at Pasar Gegerkalong)
-  const terrainGeo = createSlopedTerrainGeometry(920, 620);
+  // 1. Sloping Bandung Utara Terrain (901 m dpl at Simpang Girang -> 889 m dpl at Pasar -> 875 m dpl at Simpang Hilir)
+  const terrainGeo = createSlopedTerrainGeometry(1180, 760);
   const ground = new THREE.Mesh(
     terrainGeo,
     new THREE.MeshStandardMaterial({
@@ -120,7 +126,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   // Dense Bandung Utara tropical tree canopy surrounding the urban blocks (collision-checked!)
   addNeighborhoodCanopy(worldGroup);
 
-  // 2. Real Curved & Sloping OSM Asphalt Carriageway (Way 125178979: Jalan Gegerkalong Tengah)
+  // 2. Real Curved & Sloping OSM Asphalt Carriageway (Way 125178979: Jalan Gegerkalong Tengah 636,4 m)
   const asphalt = loadAsphaltPbr();
   asphalt.map.repeat.set(1, 1);
   if (asphalt.normalMap) asphalt.normalMap.repeat.set(1, 1);
@@ -132,7 +138,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     metalness: 0.05
   });
 
-  const mainRoadGeo = createCorridorRibbonGeometry(-16, visLen + 12, 0, CORRIDOR.roadWidthM, 0.04, 2.5, 7.5);
+  const mainRoadGeo = createCorridorRibbonGeometry(-16, visLen + 6, 0, CORRIDOR.roadWidthM, 0.04, 2.5, 7.5);
   const mainRoad = new THREE.Mesh(mainRoadGeo, roadMat);
   mainRoad.receiveShadow = true;
   worldGroup.add(mainRoad);
@@ -213,7 +219,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     worldGroup.add(bump);
   }
 
-  // Zebra crosswalks at Simpang Girang (4 m) and Pasar Gegerkalong entrance (351 m)
+  // Zebra crosswalks at Simpang Girang (4 m), Pasar Gegerkalong (351 m), and Simpang Hilir (630 m)
   const stripeMat = new THREE.MeshStandardMaterial({
     color: 0xf4f4f0,
     roughness: 0.68,
@@ -221,7 +227,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2
   });
-  for (const mZebra of [4, CORRIDOR.lengthM - 4]) {
+  for (const mZebra of [4, CORRIDOR.northSegmentM - 4, CORRIDOR.lengthM - 6]) {
     for (let s = -1.35; s <= 1.35; s += 0.68) {
       const f = sampleCorridorFrame(mZebra, s);
       const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.02, 0.34), stripeMat);
@@ -230,6 +236,24 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
       stripe.rotation.y = f.yaw;
       stripe.rotation.z = f.pitch;
       worldGroup.add(stripe);
+    }
+  }
+
+  // Crisp dashed center divider along wide arterial Jalan Raya Gegerkalong Hilir (636 m)
+  for (const sr of OSM_SIDE_ROADS) {
+    if (sr.highway !== 'secondary' || sr.points.length < 2) continue;
+    for (let i = 0; i < sr.points.length - 1; i++) {
+      const a = sr.points[i];
+      const b = sr.points[i + 1];
+      const segLen = Math.hypot(b.x - a.x, b.z - a.z);
+      const yaw = -Math.atan2(b.z - a.z, b.x - a.x);
+      for (let d = 3; d < segLen - 3; d += 7.5) {
+        const t = d / segLen;
+        const dash = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.02, 0.14), stripeMat);
+        dash.position.set(a.x + t * (b.x - a.x), a.y + 0.068, a.z + t * (b.z - a.z));
+        dash.rotation.y = yaw;
+        worldGroup.add(dash);
+      }
     }
   }
 
@@ -247,7 +271,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     worldGroup.add(new THREE.Mesh(edgeGeo, stripeMat));
   }
 
-  // Flashing amber warning beacon + Convex Safety Mirror + Green Street Name Sign at Simpang Girang
+  // Flashing amber warning beacon + Convex Safety Mirror + Green Street Name Signs at Girang & Hilir
   const beacon = createWarningBeacon();
   const fBeac = sampleCorridorFrame(2, -4.4);
   beacon.group.position.set(fBeac.x, fBeac.y, fBeac.z);
@@ -265,6 +289,12 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   streetSign.rotation.y = fSign.yaw;
   worldGroup.add(streetSign);
 
+  const hilirSign = createStreetNamePost('Jl. Gegerkalong Hilir');
+  const fHilirSign = sampleCorridorFrame(CORRIDOR.lengthM - 8, 5.2);
+  hilirSign.position.set(fHilirSign.x, fHilirSign.y, fHilirSign.z);
+  hilirSign.rotation.y = fHilirSign.yaw + Math.PI / 2;
+  worldGroup.add(hilirSign);
+
   // Real OSM Portal Lift-Gate at KPAD / Jl. Kartika II entrance (dist 308 m, West +Z)
   buildKpadLiftGate(worldGroup);
 
@@ -276,7 +306,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   // 4. Baseline Street Clutter (parked scooters encroaching the narrow curved road + gerobak)
   const baselineClutterGroup = new THREE.Group();
   const scooterColors = [0x1f2937, 0xb91c1c, 0x1d4ed8, 0xf8fafc, 0x0f766e];
-  const clutterSpotsM = [36, 48, 76, 134, 158, 210, 268, 322, 336, 344];
+  const clutterSpotsM = [36, 48, 76, 134, 158, 210, 268, 322, 336, 344, 412, 468, 524, 578, 608];
   clutterSpotsM.forEach((m, idx) => {
     const side = idx % 2 === 0 ? 1 : -1;
     const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.36));
@@ -285,7 +315,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     sc.rotation.y = f.yaw + (side === 1 ? -0.42 : 0.42);
     baselineClutterGroup.add(sc);
   });
-  for (const [mCart, side, hex] of [[332, 1, 0x1d4ed8], [70, -1, 0xb91c1c]] as const) {
+  for (const [mCart, side, hex] of [[332, 1, 0x1d4ed8], [70, -1, 0xb91c1c], [516, -1, 0x047857]] as const) {
     const f = sampleCorridorFrame(mCart, side * (CORRIDOR.roadWidthM / 2 + 0.92));
     const cart = createGerobakCart(hex);
     cart.position.set(f.x, f.y + 0.05, f.z);
@@ -426,7 +456,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   }
 
   const officers: AnimatedOfficer[] = [];
-  for (const [mOff, lat, flip] of [[22, -4.2, false], [301, 4.0, true]] as const) {
+  for (const [mOff, lat, flip] of [[22, -4.2, false], [301, 4.0, true], [616, -4.2, false]] as const) {
     const f = sampleCorridorFrame(mOff, lat);
     const off = createDishubOfficer();
     off.group.position.set(f.x, f.y + 0.05, f.z);
@@ -441,7 +471,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   const noStopTex = createNoStopSignTexture();
   const signMat = new THREE.MeshBasicMaterial({ map: noStopTex, transparent: true, side: THREE.DoubleSide });
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.45, metalness: 0.55 });
-  for (let m = 28; m <= CORRIDOR.lengthM - 20; m += 52) {
+  for (let m = 28; m <= CORRIDOR.lengthM - 20; m += 56) {
     for (const side of [-1, 1]) {
       const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.85));
       const p = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.75, 8), poleMat);
@@ -459,22 +489,19 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   // 8. ALL REAL OPENSTREETMAP FRONT-ROW BUILDINGS (EXACT GPS POSITIONS, SIZES & CLEARANCES!)
   buildOsmFrontBuildings(worldGroup);
 
-  // 9. AUTHENTIC PASAR GEGERKALONG AT EXACT SATELLITE / OSM LOCATION:
-  //    - Blue arched polycarbonate canopy lane along Way 566513488 (dist 347 m, running West +Z)
-  //    - Main Market Hall on Way 522195464 (dist 352-375 m, West +Z)
-  //    - Iconic giant shade tree right at 355 m West entrance
+  // 9. AUTHENTIC PASAR GEGERKALONG AT EXACT SATELLITE / OSM LOCATION (MID-CORRIDOR, 347-375 m)
   buildPasarGegerkalongRealZone(worldGroup);
 
-  // 10. REAL ICONIC LANDMARKS (Kampus IV UNPAS, Masjid Baiturahman, Mesjid Ulul Albab, UPI CoE, SDN Isola 2)
+  // 10. REAL ICONIC LANDMARKS (Kampus IV UNPAS, Masjid Baiturahman, Mesjid Ulul Albab, UPI CoE, SDN Isola 2, Kantor Pos Hilir)
   buildOsmLandmarks(worldGroup);
 
-  // 11. ALL REAL OPENSTREETMAP BACKGROUND NEIGHBORHOOD POLYGON BUILDINGS
+  // 11. ALL 823 REAL OPENSTREETMAP BACKGROUND POLYGON BUILDINGS (MERGED INTO 6 DRAW CALLS!)
   buildOsmBackgroundPolygons(worldGroup);
 
   // 12. Curved PLN Utility Poles + Sagging Catenary Overhead Cables (clear of Pasar & KPAD mouths)
   const poleXPositions: THREE.Vector3[] = [];
-  for (let m = 16; m <= visLen - 12; m += 38) {
-    if (m >= 302 && m <= 362) continue; // Keep KPAD mouth & Pasar entrance clean of utility wires
+  for (let m = 16; m <= visLen - 16; m += 42) {
+    if (m >= 302 && m <= 362) continue;
     const f = sampleCorridorFrame(m, CORRIDOR.roadWidthM / 2 + 0.95);
     const pole = createUtilityPole();
     pole.position.set(f.x, f.y, f.z);
@@ -486,7 +513,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   for (let i = 0; i < poleXPositions.length - 1; i++) {
     const pA = poleXPositions[i];
     const pB = poleXPositions[i + 1];
-    if (pA.distanceTo(pB) > 55) continue; // Don't span abnormally across Pasar gap
+    if (pA.distanceTo(pB) > 58) continue;
     for (const zOff of [-0.55, 0, 0.55]) {
       const mid = pA.clone().lerp(pB, 0.5);
       mid.y -= 0.72;
@@ -499,15 +526,21 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     }
   }
 
-  // 13. Intersection & Segment Portals (verified real OSM distances & Open-Meteo elevations)
+  // 13. Real Intersection Portals & Mid-Corridor LKM-2 Marker (verified OSM distances & Open-Meteo DEM)
   const fNorth = sampleCorridorFrame(0, 0);
   const northBanner = createIntersectionPortal('SIMPANG GEGERKALONG GIRANG', 'Utara · 0 m · 901 m dpl · Kampus UPI');
   northBanner.position.set(fNorth.x, fNorth.y, fNorth.z);
   northBanner.rotation.y = fNorth.yaw;
   worldGroup.add(northBanner);
 
-  const fSouth = sampleCorridorFrame(CORRIDOR.lengthM, 0);
-  const southBanner = createIntersectionPortal('PASAR GEGERKALONG · BATAS SEGMEN', 'Selatan · 355 m · 889 m dpl · → Simpang Hilir');
+  const fMid = sampleCorridorFrame(CORRIDOR.northSegmentM, 0);
+  const midBanner = createIntersectionPortal('PASAR GEGERKALONG · 355 m', 'Batas Segmen Utara (LKM-2) · 889 m dpl');
+  midBanner.position.set(fMid.x, fMid.y, fMid.z);
+  midBanner.rotation.y = fMid.yaw;
+  worldGroup.add(midBanner);
+
+  const fSouth = sampleCorridorFrame(CORRIDOR.lengthM - 2, 0);
+  const southBanner = createIntersectionPortal('SIMPANG GEGERKALONG HILIR', 'Selatan · 636 m · 875 m dpl · Jalan Raya');
   southBanner.position.set(fSouth.x, fSouth.y, fSouth.z);
   southBanner.rotation.y = fSouth.yaw;
   worldGroup.add(southBanner);
@@ -612,6 +645,8 @@ function buildOsmFrontBuildings(parent: THREE.Group): void {
   let usedBjb = false;
   let usedBarokah = false;
   let usedWarung46 = false;
+  let usedIndomaret = false;
+  let usedAlfamart = false;
   let pasarFrontIdx = 0;
 
   OSM_FRONT_BUILDINGS.forEach((b: OsmFrontBuilding, idx: number) => {
@@ -629,6 +664,12 @@ function buildOsmFrontBuildings(parent: THREE.Group): void {
     let preset: ShopPreset;
     if (b.isPasarZone) {
       preset = PASAR_FRONT_PRESETS[pasarFrontIdx++ % PASAR_FRONT_PRESETS.length];
+    } else if (!usedIndomaret && b.distM >= 580 && b.side === 1) {
+      usedIndomaret = true;
+      preset = HILIR_PRESETS[0]; // Indomaret dekat Simpang Gegerkalong Hilir
+    } else if (!usedAlfamart && b.distM >= 580 && b.side === -1) {
+      usedAlfamart = true;
+      preset = HILIR_PRESETS[1]; // Alfamart dekat Simpang Gegerkalong Hilir
     } else if (!usedBjb && b.distM >= 312 && b.distM <= 355 && b.side === -1) {
       usedBjb = true;
       preset = SHOP_PRESETS[0]; // Kantor Kas Bank BJB seberang Pasar Gegerkalong
@@ -1099,6 +1140,22 @@ function buildOsmLandmarks(parent: THREE.Group): void {
       hipRoof.rotation.y = Math.PI / 4;
       hipRoof.castShadow = true;
       parent.add(hipRoof);
+    } else if (lm.kind === 'post-office') {
+      // Kantor Pos Gegerkalong Hilir (PT Pos Indonesia orange fascia + roof parapet)
+      const posOrange = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.48 });
+      const band = new THREE.Mesh(new THREE.BoxGeometry(spanX + 0.3, 0.9, spanZ + 0.3), posOrange);
+      band.position.set(lm.cx, lm.y + lm.height - 0.35, lm.cz);
+      band.castShadow = true;
+      parent.add(band);
+
+      const posTex = createSignTexture('KANTOR POS', 'Gegerkalong Hilir No. 42', '#ea580c', '#ffffff', '#fde047');
+      const sign = new THREE.Mesh(
+        new THREE.PlaneGeometry(Math.max(4.5, spanZ * 0.72), 1.05),
+        new THREE.MeshBasicMaterial({ map: posTex, side: THREE.DoubleSide })
+      );
+      sign.position.set(lm.cx + spanX / 2 + 0.25, lm.y + lm.height + 0.4, lm.cz);
+      sign.rotation.y = Math.PI / 2;
+      parent.add(sign);
     } else if (lm.kind === 'upi-tower') {
       // Modern horizontal ribbon glazing + rooftop mechanical penthouse for 8-story CoE UPI
       for (let fl = 1; fl <= 6; fl++) {
@@ -1115,8 +1172,22 @@ function buildOsmLandmarks(parent: THREE.Group): void {
 }
 
 /**
- * Extrudes all real OpenStreetMap second-row neighborhood building footprints
- * with weathered Bandung plaster walls and Poly Haven clay/dark roof caps.
+ * Splits a non-indexed BufferGeometry slice [start, start + count) into a standalone BufferGeometry.
+ */
+function sliceGeometryGroup(geo: THREE.BufferGeometry, start: number, count: number): THREE.BufferGeometry {
+  const out = new THREE.BufferGeometry();
+  const pos = geo.attributes.position as THREE.BufferAttribute;
+  const nor = geo.attributes.normal as THREE.BufferAttribute;
+  const uv = geo.attributes.uv as THREE.BufferAttribute;
+  out.setAttribute('position', new THREE.BufferAttribute(pos.array.slice(start * 3, (start + count) * 3), 3));
+  if (nor) out.setAttribute('normal', new THREE.BufferAttribute(nor.array.slice(start * 3, (start + count) * 3), 3));
+  if (uv) out.setAttribute('uv', new THREE.BufferAttribute(uv.array.slice(start * 2, (start + count) * 2), 2));
+  return out;
+}
+
+/**
+ * Extrudes all 823 real OpenStreetMap neighborhood building footprints and merges them
+ * into 6 batched GPU meshes (3 roof buckets + 3 wall buckets) for smooth 60 FPS across 636 m.
  */
 function buildOsmBackgroundPolygons(parent: THREE.Group): void {
   const wallMaps = loadWeatheredWallPbr();
@@ -1128,7 +1199,7 @@ function buildOsmBackgroundPolygons(parent: THREE.Group): void {
   clayMaps.map.repeat.set(0.14, 0.14);
   greyMaps.map.repeat.set(0.14, 0.14);
 
-  const bgWallMats = [0xe8e2d6, 0xdfd8c9, 0xede8dd, 0xd8d3c8].map(
+  const bgWallMats = [0xe8e2d6, 0xdfd8c9, 0xede8dd].map(
     hex =>
       new THREE.MeshStandardMaterial({
         color: hex,
@@ -1142,6 +1213,9 @@ function buildOsmBackgroundPolygons(parent: THREE.Group): void {
     new THREE.MeshStandardMaterial({ color: 0xa47154, map: clayMaps.map, roughness: 0.84 })
   ];
 
+  const roofBuckets: THREE.BufferGeometry[][] = [[], [], []];
+  const wallBuckets: THREE.BufferGeometry[][] = [[], [], []];
+
   OSM_BG_BUILDINGS.forEach((b, idx) => {
     if (b.poly.length < 3) return;
     const shape = new THREE.Shape();
@@ -1153,8 +1227,38 @@ function buildOsmBackgroundPolygons(parent: THREE.Group): void {
 
     const geo = new THREE.ExtrudeGeometry(shape, { depth: b.height + 1.4, bevelEnabled: false });
     geo.rotateX(-Math.PI / 2);
-    const mesh = new THREE.Mesh(geo, [bgRoofMats[idx % bgRoofMats.length], bgWallMats[idx % bgWallMats.length]]);
-    mesh.position.y = b.y - 1.4;
+    geo.translate(0, b.y - 1.4, 0);
+
+    const roofIdx = idx % bgRoofMats.length;
+    const wallIdx = idx % bgWallMats.length;
+    for (const grp of geo.groups) {
+      const part = sliceGeometryGroup(geo, grp.start, grp.count);
+      if (grp.materialIndex === 0) {
+        roofBuckets[roofIdx].push(part);
+      } else {
+        wallBuckets[wallIdx].push(part);
+      }
+    }
+    geo.dispose();
+  });
+
+  roofBuckets.forEach((geos, i) => {
+    if (geos.length === 0) return;
+    const merged = mergeGeometries(geos, false);
+    geos.forEach(g => g.dispose());
+    if (!merged) return;
+    const mesh = new THREE.Mesh(merged, bgRoofMats[i]);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+  });
+
+  wallBuckets.forEach((geos, i) => {
+    if (geos.length === 0) return;
+    const merged = mergeGeometries(geos, false);
+    geos.forEach(g => g.dispose());
+    if (!merged) return;
+    const mesh = new THREE.Mesh(merged, bgWallMats[i]);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     parent.add(mesh);
@@ -1354,10 +1458,10 @@ function addNeighborhoodCanopy(parent: THREE.Group): void {
     return (seed - 1) / 2147483646;
   };
 
-  for (let attempt = 0; attempt < 1100 && spots.length < 185; attempt++) {
-    const distM = -28 + rand() * (CORRIDOR.visualLengthM + 56);
+  for (let attempt = 0; attempt < 1600 && spots.length < 260; attempt++) {
+    const distM = -32 + rand() * (CORRIDOR.lengthM + 64);
     const side = attempt % 2 === 0 ? 1 : -1;
-    const lat = side * (16 + Math.pow(rand(), 1.08) * 95);
+    const lat = side * (16 + Math.pow(rand(), 1.08) * 110);
     const f = sampleCorridorFrame(distM, lat);
 
     if (hitsAnyBuildingOrRoad(f.x, f.z, distM, lat)) continue;

@@ -150,10 +150,10 @@ export class TrafficScene3D {
     this.skyAfternoon = loadEquirectSky('afternoon');
     this.scene.background = new THREE.Color(0xe6edf4);
     this.scene.environment = this.skyMorning;
-    this.scene.fog = new THREE.Fog(0xe6edf4, 145, 340);
+    this.scene.fog = new THREE.Fog(0xe6edf4, 210, 560);
 
     // Telephoto Architectural Isometric Lens (26 deg FOV removes wide-angle distortion!)
-    this.camera = new THREE.PerspectiveCamera(26, w / h, 1.0, 1600);
+    this.camera = new THREE.PerspectiveCamera(26, w / h, 1.0, 2600);
     this.camera.position.set(...CAMERA_PRESETS.isometric.position);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -161,29 +161,29 @@ export class TrafficScene3D {
     this.controls.dampingFactor = 0.08;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.14; // Keeps camera above ugly flat horizon plane
     this.controls.minDistance = 24;
-    this.controls.maxDistance = 720;
+    this.controls.maxDistance = 1250;
     this.controls.target.set(...CAMERA_PRESETS.isometric.target);
     this.controls.addEventListener('start', () => {
       this.desiredCamPos = null;
       this.desiredTarget = null;
     });
 
-    // High-Resolution 4096x4096 Shadow Sunlight + Hemisphere Bounce + Cool Fill
+    // High-Resolution 4096x4096 Shadow Sunlight covering the entire 636 m corridor
     this.hemiLight = new THREE.HemisphereLight(0xf2f8ff, 0xb8b3a4, 0.88);
     this.scene.add(this.hemiLight);
 
     this.sunLight = new THREE.DirectionalLight(0xfff4de, 1.65);
-    this.sunLight.position.set(-85, 130, 82);
+    this.sunLight.position.set(-110, 175, 115);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.width = 4096;
     this.sunLight.shadow.mapSize.height = 4096;
     this.sunLight.shadow.camera.near = 20;
-    this.sunLight.shadow.camera.far = 480;
-    const d = 225;
+    this.sunLight.shadow.camera.far = 820;
+    const d = 385;
     this.sunLight.shadow.camera.left = -d;
     this.sunLight.shadow.camera.right = d;
-    this.sunLight.shadow.camera.top = 135;
-    this.sunLight.shadow.camera.bottom = -135;
+    this.sunLight.shadow.camera.top = 215;
+    this.sunLight.shadow.camera.bottom = -215;
     this.sunLight.shadow.bias = -0.00035;
     this.scene.add(this.sunLight);
 
@@ -284,8 +284,8 @@ export class TrafficScene3D {
       Math.min(1, realDt * 5)
     );
     const fog = this.scene.fog as THREE.Fog;
-    const desiredNear = isHighView ? camHeight + 180 : 155;
-    const desiredFar = isHighView ? camHeight + 620 : 365;
+    const desiredNear = isHighView ? camHeight + 240 : 195;
+    const desiredFar = isHighView ? camHeight + 920 : 520;
     fog.near = THREE.MathUtils.lerp(fog.near, desiredNear, Math.min(1, realDt * 6));
     fog.far = THREE.MathUtils.lerp(fog.far, desiredFar, Math.min(1, realDt * 6));
 

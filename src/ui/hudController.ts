@@ -184,7 +184,7 @@ export class HudController {
       status = 'Mengantre';
     }
 
-    const dirLabel = v.dir === 1 ? 'Girang → Pasar' : 'Pasar → Girang';
+    const dirLabel = v.dir === 1 ? 'Girang → Hilir' : 'Hilir → Girang';
     this.elTooltip.innerHTML = `
       <div class="tip-head">${v.kind} #${v.id} · ${dirLabel}</div>
       <div class="tip-row">Status: <strong>${status}</strong></div>

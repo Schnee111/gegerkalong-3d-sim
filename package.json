@@ -2,7 +2,7 @@
   "name": "gegerkalong-3d-traffic-sim",
   "version": "1.0.0",
   "private": true,
-  "description": "Simulasi Lalu Lintas Mikroskopis 3D — Segmen Utara Jalan Gegerkalong Tengah (355 m), Kelompok 9 MSTR-Transportasi FPMIPA UPI",
+  "description": "Simulasi Lalu Lintas Mikroskopis 3D — Jalan Gegerkalong Tengah (636 m Utuh · Girang → Pasar → Hilir), Kelompok 9 MSTR-Transportasi FPMIPA UPI",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,4 +1,4 @@
-# Simulasi Lalu Lintas 3D — Jalan Gegerkalong Tengah (355 m)
+# Simulasi Lalu Lintas 3D — Jalan Gegerkalong Tengah (636 m Utuh)
 
 Proyek simulasi lalu lintas mikroskopis 3D berbasis **Vite + TypeScript + Three.js + Chart.js** untuk presentasi **LKM-2 MSTR-Transportasi (Kelompok 9, FPMIPA UPI)**.
 
@@ -12,9 +12,9 @@ Proyek simulasi lalu lintas mikroskopis 3D berbasis **Vite + TypeScript + Three.
 
 ## Keakuratan Topologi & Kalibrasi Data Riil
 
-- **Geometri & Topologi Jalan:** Mengacu pada **OpenStreetMap API v0.6** (`Way 125178979` — Jl. Gegerkalong Tengah, lebar aspal riil 3,8 m, segmen utara 355 m dari Simpang Gegerkalong Girang menuju Pasar Gegerkalong / arah Simpang Hilir) beserta 32 ruas jalan/gang penghubung (Jl. Gegerkalong Girang, Gang Masjid Al Barkah, Jl. Gegerkalong Tengah 9, akses KPAD/Jl. Kartika II dengan portal *lift-gate*, Jl. Haji Ridho, dan lorong kanopi biru Pasar Gegerkalong `Way 566513488`).
-- **Bangunan & Landmark Nyata:** 60 bangunan baris depan, 328 bangunan permukiman sekitar, serta 9 landmark ikonik pada tapak GPS sebenarnya — termasuk **Pasar Gegerkalong No. 35A** (kanopi lengkung biru polikarbonat + gedung los utama `Way 522195464` 702 m² + pohon rindang pintu masuk), **Masjid Baiturahman**, **Kampus IV UNPAS** (Gedung A Rektorat, Gedung B, Mesjid Ulul Albab), serta tepi selatan **Kampus UPI** (Gedung Centre of Excellence UPI & SD Negeri Isola 2).
-- **Profil Elevasi:** Data elevasi nyata **Open-Meteo DEM** Bandung Utara (turun 12 m dari **901 m dpl** di Simpang Girang ke **889 m dpl** di Pasar Gegerkalong).
+- **Geometri & Topologi Jalan Utuh (636,4 m):** Mengacu penuh pada **OpenStreetMap API v0.6** (`Way 125178979` — Jl. Gegerkalong Tengah, lebar aspal riil 3,8 m) dari **Simpang Jl. Gegerkalong Girang (`0 m`)** → melewati **Pasar Gegerkalong (`~347–375 m`, batas segmen utara `355 m` LKM-2)** → hingga **Simpang Jalan Raya Gegerkalong Hilir (`636,4 m`)**, lengkap dengan 64 ruas jalan/gang penghubung (Jl. Gegerkalong Girang, Gang Masjid Al Barkah, Jl. Gegerkalong Tengah 9, akses KPAD/Jl. Kartika II dengan *lift-gate*, Jl. Haji Ridho, lorong kanopi biru Pasar `Way 566513488`, dan arteri 2 lajur Jl. Gegerkalong Hilir).
+- **Bangunan & Landmark Nyata (920 struktur OSM):** 86 bangunan baris depan, 823 bangunan permukiman (digabung ke 6 *batched GPU draw calls*), serta 11 landmark ikonik pada tapak GPS sebenarnya — **Pasar Gegerkalong No. 35A** (kanopi lengkung biru + gedung los utama `Way 522195464` 702 m² + pohon rindang pintu masuk), **Masjid Baiturahman**, **Kampus IV UNPAS** (Gedung A Rektorat, Gedung B, Mesjid Ulul Albab), **Kampus UPI** (Gedung Centre of Excellence UPI & SDN Isola 2), serta area **Simpang Hilir** (**Kantor Pos Gegerkalong Hilir**, Indomaret, Alfamart, Widyaloka 1).
+- **Profil Elevasi:** Data elevasi nyata **Open-Meteo DEM** Bandung Utara (turun 26 m dari **901 m dpl** di Simpang Girang → **889 m dpl** di Pasar Gegerkalong → **875 m dpl** di Simpang Hilir).
 - **Lalu Lintas & Volume:**
   - Menggunakan aturan **lajur kiri Indonesia** (arah Selatan Girang → Pasar di sisi Timur; arah Utara Pasar → Girang di sisi Barat).
   - **Komposisi armada** mengacu data **ERI Korlantas Polri / BPS Kota Bandung (2024)**: 75% sepeda motor (`emp = 0,40`), 16% mobil penumpang (`1,00`), 5% angkot (`1,00`), 4% mobil boks/muat pasar (`1,20`) dengan rata-rata tertimbang `0,558 smp/kend.`.
