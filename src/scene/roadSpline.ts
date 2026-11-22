@@ -117,6 +117,39 @@ export function sampleTerrainElevation(worldX: number): number {
 }
 
 /**
+ * Estimates longitudinal distance along Jalan Gegerkalong Tengah (0..636.4 m) from a world X coordinate.
+ */
+export function estimateCorridorDistM(worldX: number): number {
+  const pts = OSM_ROAD_CENTERLINE;
+  if (worldX <= pts[0].x) return pts[0].distM;
+  const last = pts[pts.length - 1];
+  if (worldX >= last.x) return last.distM;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    if (worldX >= a.x && worldX <= b.x) {
+      const t = (worldX - a.x) / Math.max(0.001, b.x - a.x);
+      return a.distM + t * (b.distM - a.distM);
+    }
+  }
+  return 0;
+}
+
+/**
+ * Returns the human-readable landmark zone name along the 636 m corridor.
+ */
+export function getCorridorZoneLabel(distM: number): string {
+  if (distM < 45) return 'Simpang Girang · UPI';
+  if (distM < 175) return 'Zona Kos & Ruko Utara';
+  if (distM < 225) return 'Drop-Off · Kampus IV UNPAS';
+  if (distM < 302) return 'Parkir Khusus · Utara Pasar';
+  if (distM < 322) return 'KPAD · Masjid Baiturahman';
+  if (distM < 385) return 'Pasar Gegerkalong (355 m)';
+  if (distM < 575) return 'Segmen Selatan · Ruko';
+  return 'Simpang Jl. Gegerkalong Hilir';
+}
+
+/**
  * Builds a smooth 3D ribbon strip along the corridor centerline between [startM, endM]
  * at a given lateral offset and width, with clean UVs along length (U) and width (V).
  */

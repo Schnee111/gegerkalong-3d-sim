@@ -53,6 +53,27 @@ function bootstrap(): void {
     onCameraPreset: preset => {
       scene3d.setCameraPreset(preset);
     },
+    onPovVehicle: () => {
+      scene3d.enterVehiclePov(engine.getStateView());
+    },
+    onPovPedestrian: () => {
+      scene3d.enterPedestrianPov(engine.getStateView());
+    },
+    onToggleTour: () => {
+      scene3d.toggleCorridorTour();
+    },
+    onPovStyleToggle: () => {
+      scene3d.toggleVehiclePovStyle();
+    },
+    onPovCycle: () => {
+      scene3d.cyclePovTarget(engine.getStateView());
+    },
+    onPovExit: () => {
+      scene3d.exitPov(true);
+    },
+    onCorridorScrub: distM => {
+      scene3d.scrubCorridor(distM);
+    },
     onLightingChange: mode => {
       scene3d.setLightingMode(mode);
     },
@@ -101,7 +122,6 @@ function bootstrap(): void {
   const initialView = engine.getStateView();
   hud.syncScenarioSelection(initialView);
   hud.syncState(initialView);
-  hud.syncCompass(scene3d.getNorthCompassDeg());
   hud.renderSnapshots(snapshots);
   charts.updateLive(initialView.history);
   lastHistoryVersion = initialView.historyVersion;
@@ -124,12 +144,11 @@ function bootstrap(): void {
 
     const view = engine.getStateView();
     const totalSimDt = running ? realDt * speed : 0;
-    const hoverInfo = scene3d.syncAndRender(view, realDt, totalSimDt);
+    const { hover, cameraStatus } = scene3d.syncAndRender(view, realDt, totalSimDt);
     hud.syncState(view);
-    hud.syncCompass(scene3d.getNorthCompassDeg());
-    hud.renderTooltip(hoverInfo);
+    hud.syncCameraStatus(cameraStatus);
+    hud.renderTooltip(hover);
 
-    // Only redraw Chart.js when a genuine new 5-second history sample arrives (eliminates 60x/s redraw spam!)
     if (view.historyVersion !== lastHistoryVersion) {
       charts.updateLive(view.history);
       lastHistoryVersion = view.historyVersion;

@@ -7,7 +7,12 @@ import {
   type VolumePresetKey
 } from '../config/scenarios';
 import type { EngineStateView, SnapshotRecord } from '../simulation/types';
-import type { LightingMode, VehicleHoverInfo } from '../scene/trafficScene';
+import type {
+  CameraMode,
+  CameraStatusView,
+  LightingMode,
+  VehicleHoverInfo
+} from '../scene/trafficScene';
 import type { BenchmarkMetricKey } from './chartsController';
 
 export interface HudCallbacks {
@@ -15,6 +20,13 @@ export interface HudCallbacks {
   onVolumePresetChange(preset: VolumePresetKey): void;
   onOneWayDirChange(dir: OneWayDirection): void;
   onCameraPreset(preset: CameraPresetKey): void;
+  onPovVehicle(): void;
+  onPovPedestrian(): void;
+  onToggleTour(): void;
+  onPovStyleToggle(): void;
+  onPovCycle(): void;
+  onPovExit(): void;
+  onCorridorScrub(distM: number): void;
   onLightingChange(mode: LightingMode): void;
   onPlayPauseToggle(): boolean;
   onReset(): void;
@@ -28,6 +40,8 @@ export interface HudCallbacks {
 export class HudController {
   private callbacks: HudCallbacks;
   private drawerOpen = true;
+  private activeCameraMode: CameraMode = 'free';
+  private isScrubbingRail = false;
 
   private elClock: HTMLElement;
   private elCompassArrow: HTMLElement;
@@ -46,6 +60,19 @@ export class HudController {
   private elDrawerBtn: HTMLButtonElement;
   private elPlayBtn: HTMLButtonElement;
   private elSnapshotBody: HTMLElement;
+
+  private elPovBanner: HTMLElement;
+  private elPovTitle: HTMLElement;
+  private elPovDetail: HTMLElement;
+  private btnPovVehicle: HTMLButtonElement;
+  private btnPovPedestrian: HTMLButtonElement;
+  private btnTour: HTMLButtonElement;
+  private btnPovStyle: HTMLButtonElement;
+  private btnPovCycle: HTMLButtonElement;
+  private btnPovExit: HTMLButtonElement;
+
+  private sliderCorridor: HTMLInputElement;
+  private elRailReadout: HTMLElement;
 
   private sliderLam: HTMLInputElement;
   private sliderPStop: HTMLInputElement;
@@ -76,6 +103,19 @@ export class HudController {
     this.elPlayBtn = this.mustGet('btnPlayPause') as HTMLButtonElement;
     this.elSnapshotBody = this.mustGet('snapshotBody');
 
+    this.elPovBanner = this.mustGet('povBanner');
+    this.elPovTitle = this.mustGet('povTitle');
+    this.elPovDetail = this.mustGet('povDetail');
+    this.btnPovVehicle = this.mustGet('btnPovVehicle') as HTMLButtonElement;
+    this.btnPovPedestrian = this.mustGet('btnPovPedestrian') as HTMLButtonElement;
+    this.btnTour = this.mustGet('btnTour') as HTMLButtonElement;
+    this.btnPovStyle = this.mustGet('btnPovStyle') as HTMLButtonElement;
+    this.btnPovCycle = this.mustGet('btnPovCycle') as HTMLButtonElement;
+    this.btnPovExit = this.mustGet('btnPovExit') as HTMLButtonElement;
+
+    this.sliderCorridor = this.mustGet('sliderCorridor') as HTMLInputElement;
+    this.elRailReadout = this.mustGet('railReadout');
+
     this.sliderLam = this.mustGet('sliderLam') as HTMLInputElement;
     this.sliderPStop = this.mustGet('sliderPStop') as HTMLInputElement;
     this.sliderStopDur = this.mustGet('sliderStopDur') as HTMLInputElement;
@@ -84,7 +124,6 @@ export class HudController {
     this.valPStop = this.mustGet('valPStop');
     this.valStopDur = this.mustGet('valStopDur');
 
-    // Start collapsed on narrower screens so 3D viewport remains focal
     if (window.innerWidth < 1100) {
       this.drawerOpen = false;
       this.syncDrawerState();
@@ -93,8 +132,40 @@ export class HudController {
     this.bindEvents();
   }
 
-  public syncCompass(northDeg: number): void {
-    this.elCompassArrow.style.transform = `rotate(${northDeg.toFixed(1)}deg)`;
+  public syncCameraStatus(status: CameraStatusView): void {
+    this.activeCameraMode = status.mode;
+    this.elCompassArrow.style.transform = `rotate(${status.northDeg.toFixed(1)}deg)`;
+
+    // Update Corridor Rail scrubber smoothly when user isn't dragging it
+    const distRound = Math.round(status.corridorDistM);
+    if (!this.isScrubbingRail) {
+      this.sliderCorridor.value = String(distRound);
+    }
+    this.elRailReadout.textContent = `${distRound} m · ${status.zoneLabel}`;
+
+    // Sync POV / Tour toolbar active pills
+    const setActive = (btn: HTMLButtonElement, active: boolean) => {
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', String(active));
+    };
+    setActive(this.btnPovVehicle, status.mode === 'vehicle');
+    setActive(this.btnPovPedestrian, status.mode === 'pedestrian');
+    setActive(this.btnTour, status.mode === 'tour');
+
+    if (status.mode !== 'free') {
+      document.querySelectorAll<HTMLButtonElement>('[data-camera]').forEach(b => {
+        b.classList.remove('is-active');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      this.elPovTitle.textContent = status.activeLabel;
+      this.elPovDetail.textContent = status.activeDetail;
+      this.btnPovStyle.hidden = status.mode !== 'vehicle';
+      this.btnPovStyle.textContent = status.vehiclePovStyle === 'chase' ? 'Dashcam' : 'Chase-Cam';
+      this.btnPovCycle.hidden = status.mode === 'tour';
+      this.elPovBanner.hidden = false;
+    } else {
+      this.elPovBanner.hidden = true;
+    }
   }
 
   public syncLightingSelection(mode: LightingMode): void {
@@ -189,9 +260,10 @@ export class HudController {
       <div class="tip-head">${v.kind} #${v.id} · ${dirLabel}</div>
       <div class="tip-row">Status: <strong>${status}</strong></div>
       <div class="tip-row">Kecepatan: ${(v.speedMs * 3.6).toFixed(1)} km/j · Tunggu: ${v.waitSec.toFixed(1)} dtk</div>
+      <div class="tip-row"><em>Klik kendaraan untuk masuk POV</em></div>
     `;
-    const left = Math.min(window.innerWidth - 245, Math.max(12, hover.screenX + 14));
-    const top = Math.max(64, hover.screenY - 68);
+    const left = Math.min(window.innerWidth - 250, Math.max(12, hover.screenX + 14));
+    const top = Math.max(64, hover.screenY - 82);
     this.elTooltip.style.left = `${left}px`;
     this.elTooltip.style.top = `${top}px`;
     this.elTooltip.hidden = false;
@@ -258,6 +330,25 @@ export class HudController {
       });
     });
 
+    this.btnPovVehicle.addEventListener('click', () => this.callbacks.onPovVehicle());
+    this.btnPovPedestrian.addEventListener('click', () => this.callbacks.onPovPedestrian());
+    this.btnTour.addEventListener('click', () => this.callbacks.onToggleTour());
+    this.btnPovStyle.addEventListener('click', () => this.callbacks.onPovStyleToggle());
+    this.btnPovCycle.addEventListener('click', () => this.callbacks.onPovCycle());
+    this.btnPovExit.addEventListener('click', () => this.callbacks.onPovExit());
+
+    this.sliderCorridor.addEventListener('pointerdown', () => {
+      this.isScrubbingRail = true;
+    });
+    const endScrub = () => {
+      this.isScrubbingRail = false;
+    };
+    this.sliderCorridor.addEventListener('pointerup', endScrub);
+    this.sliderCorridor.addEventListener('change', endScrub);
+    this.sliderCorridor.addEventListener('input', () => {
+      this.callbacks.onCorridorScrub(Number(this.sliderCorridor.value));
+    });
+
     document.querySelectorAll<HTMLButtonElement>('[data-lighting]').forEach(btn => {
       btn.addEventListener('click', () => {
         const mode = btn.dataset.lighting as LightingMode;
@@ -292,7 +383,8 @@ export class HudController {
     });
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && this.drawerOpen) {
+      // Only close drawer on Escape if NOT currently exiting a POV/Tour mode
+      if (e.key === 'Escape' && this.activeCameraMode === 'free' && this.drawerOpen) {
         this.drawerOpen = false;
         this.syncDrawerState();
       }

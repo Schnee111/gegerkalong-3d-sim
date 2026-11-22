@@ -78,6 +78,16 @@ input:focus-visible {
   pointer-events: none;
 }
 
+.topbar-left-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
 .title-plaque,
 .toolbar-cluster {
   pointer-events: auto;
@@ -88,9 +98,9 @@ input:focus-visible {
 }
 
 .title-plaque {
-  padding: 10px 14px;
+  padding: 8px 13px;
   border-left: 4px solid var(--maroon);
-  max-width: 440px;
+  max-width: 400px;
 }
 
 .title-plaque h1 {
@@ -108,7 +118,7 @@ input:focus-visible {
   color: var(--ink-muted);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: wrap;
 }
 
@@ -123,10 +133,10 @@ input:focus-visible {
 }
 
 .toolbar-cluster {
-  padding: 6px;
+  padding: 5px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -143,10 +153,11 @@ input:focus-visible {
   border: none;
   background: transparent;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 6px 10px;
-  min-height: 32px;
+  padding: 5px 8px;
+  min-height: 30px;
+  white-space: nowrap;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -163,11 +174,12 @@ input:focus-visible {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--ink);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 6px 11px;
-  min-height: 32px;
+  padding: 5px 9px;
+  min-height: 30px;
   border-radius: 6px;
+  white-space: nowrap;
   transition: background-color 0.15s ease;
 }
 
@@ -185,12 +197,74 @@ input:focus-visible {
   background: var(--maroon-dark);
 }
 
-/* Spillback alert strip (top-left under title) */
+/* Active POV / Tour Floating Banner (stacked cleanly below title plaque) */
+.pov-banner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--maroon);
+  border-radius: 8px;
+  padding: 7px 11px;
+  box-shadow: 0 3px 12px rgba(24, 24, 27, 0.14);
+  max-width: min(560px, calc(100vw - 410px));
+}
+
+.pov-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.pov-info strong {
+  color: var(--maroon);
+  font-weight: 800;
+}
+
+.pov-info span {
+  color: var(--ink-muted);
+}
+
+.pov-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mini-btn {
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.mini-btn:hover {
+  background: #ebe8e1;
+}
+
+.mini-btn.exit {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
+.mini-btn.exit:hover {
+  background: #27272a;
+}
+
+/* Spillback alert strip (stacked cleanly below title plaque / POV banner) */
 .spillback-banner {
-  position: absolute;
-  top: 76px;
-  left: 14px;
-  z-index: 18;
+  pointer-events: auto;
   background: #fef2f2;
   color: var(--danger);
   border: 1px solid #fca5a5;
@@ -202,17 +276,24 @@ input:focus-visible {
   box-shadow: 0 2px 8px rgba(185, 28, 28, 0.12);
 }
 
-/* Bottom Architectural Scenario & Telemetry Dock */
+/* Bottom Architectural Scenario, Corridor Rail & Telemetry Dock */
 .bottom-dock {
   position: absolute;
   bottom: 14px;
   left: 14px;
   z-index: 20;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: calc(100vw - 404px);
+}
+
+.dock-row {
+  display: flex;
   align-items: stretch;
   gap: 10px;
   flex-wrap: wrap;
-  max-width: calc(100vw - 404px);
 }
 
 .dock-panel {
@@ -225,6 +306,48 @@ input:focus-visible {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.corridor-rail {
+  padding: 5px 12px;
+  gap: 9px;
+  flex-wrap: nowrap;
+  width: min(740px, 100%);
+}
+
+.rail-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--maroon);
+  white-space: nowrap;
+}
+
+.rail-end {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.corridor-rail input[type='range'] {
+  flex: 1;
+  min-width: 140px;
+  accent-color: var(--maroon);
+}
+
+.rail-readout {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .scenario-tab {
@@ -657,7 +780,12 @@ input:focus-visible {
 }
 
 @media (max-width: 768px) {
-  .title-plaque {
+  .studio-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .title-plaque,
+  .pov-banner {
     max-width: 100%;
   }
   .telemetry-strip {

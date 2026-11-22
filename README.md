@@ -42,15 +42,23 @@ gegerkalong-3d-sim/
     │   ├── textures.ts            # Tekstur PBR Poly Haven, fasad Bandung & papan nama
     │   ├── buildingFactory.ts     # Arsitektur detail Ruko, Kos 4 lantai, pohon & tiang PLN
     │   ├── streetProps.ts         # Properti Bandung: gerobak, petugas Dishub, cermin, rambu
-    │   ├── corridorBuilder.ts     # Koridor 355 m, Pasar Gegerkalong, UNPAS, Masjid, trotoar, parkir
+    │   ├── corridorBuilder.ts     # Koridor 636 m, Pasar Gegerkalong, UNPAS, Masjid, Kantor Pos, parkir
     │   ├── vehicleFactory.ts      # Model 3D motor, mobil, angkot, boks muat & pejalan kaki + dispose
-    │   └── trafficScene.ts        # Renderer WebGL, tilt-shift, kompas Utara, OrbitControls, raycasting
+    │   └── trafficScene.ts        # Renderer WebGL, POV Kendaraan/Pejalan, Tur, WASD, kompas Utara
     ├── ui/
     │   ├── chartsController.ts    # Grafik antrean real-time & benchmark SimPy 10 replikasi
-    │   └── hudController.ts       # Pengendali HUD, kompas, preset volume, slider & snapshot
+    │   └── hudController.ts       # Pengendali HUD, POV banner, rail susur jalan, preset & snapshot
     └── styles/
         └── main.css               # Gaya studio arsitektural terang (kontras tinggi untuk proyektor)
 ```
+
+## Kontrol Kamera & POV Presentasi
+
+- **Preset Cepat:** `Isometrik`, `Girang`, `Pasar`, `Hilir`, dan `Denah` (keseluruhan 636 m).
+- **POV Kendaraan (*Chase-Cam* & *Dashcam*):** Klik tombol **`POV Kendaraan`** atau langsung **klik kendaraan 3D mana saja** di jalan untuk mengikutinya, lalu gunakan tombol `Dashcam` / `Ganti` / `Keluar (Esc)`.
+- **POV Pejalan Kaki (1,65 m):** Klik **`POV Pejalan`** untuk membandingkan langsung sudut pandang pejalan kaki di bahu sempit (*Baseline*) vs terlindungi trotoar & bollard (*Skenario 1 & 2*).
+- **Susur Jalan (`0–636 m`) & Tur Otomatis:** Geser bilah **Susur Jalan** di dock bawah untuk meluncur mulus mengikuti lekukan jalan, atau klik **`Tur`** untuk *flythrough* otomatis sepanjang koridor.
+- **Navigasi Bebas:** `W/A/S/D` atau tombol Panah untuk geser sejajar jalan, `Q/E` naik-turun, *scroll* untuk *zoom* menuju kursor, dan `R` untuk kembali ke tampilan Isometrik.
 
 ## Menjalankan Secara Lokal
 
