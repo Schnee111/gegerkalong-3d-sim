@@ -193,9 +193,11 @@ export class HudController {
     this.elLos.textContent = `LOS ${m.losGrade} · ${m.statusLabel}`;
     this.elLos.dataset.grade = m.losGrade;
 
-    this.elSafety.textContent = cfg.hasSidewalk
-      ? 'Trotoar sisi Timur aktif (pejalan kaki terlindungi · lajur kiri)'
-      : 'Tanpa trotoar (pejalan kaki berbagi bahu sempit · lajur kiri)';
+    this.elSafety.textContent = !cfg.hasOffstreet
+      ? 'Bangunan rapat tanpa ruang trotoar · pejalan kaki terdesak parkir liar di bahu aspal'
+      : cfg.twoWay
+      ? 'Bangunan rapat tanpa trotoar · tepi jalan bebas parkir liar, ruang pejalan lebih lega'
+      : 'Bangunan rapat tanpa trotoar · satu arah & bebas parkir liar, konflik pejalan minimal';
 
     if (m.spillbackQueue > 0) {
       this.elSpillback.textContent = `Luberan ${m.spillbackOriginLabel}: +${m.spillbackQueue} kendaraan`;

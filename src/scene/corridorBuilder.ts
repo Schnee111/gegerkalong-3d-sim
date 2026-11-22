@@ -282,14 +282,14 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   const clutterSpotsM = [36, 48, 76, 134, 158, 210, 268, 322, 336, 344, 412, 468, 524, 578, 608];
   clutterSpotsM.forEach((m, idx) => {
     const side = idx % 2 === 0 ? 1 : -1;
-    const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.36));
+    const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.04));
     const sc = buildDetailedIndonesianScooter(scooterColors[idx % scooterColors.length], false, false);
     sc.position.set(f.x, f.y + 0.05, f.z);
     sc.rotation.y = f.yaw + (side === 1 ? -0.42 : 0.42);
     baselineClutterGroup.add(sc);
   });
   for (const [mCart, side, hex] of [[332, 1, 0x1d4ed8], [70, -1, 0xb91c1c], [516, -1, 0x047857]] as const) {
-    const f = sampleCorridorFrame(mCart, side * (CORRIDOR.roadWidthM / 2 + 0.92));
+    const f = sampleCorridorFrame(mCart, side * (CORRIDOR.roadWidthM / 2 - 0.1));
     const cart = createGerobakCart(hex);
     cart.position.set(f.x, f.y + 0.05, f.z);
     cart.rotation.y = f.yaw;
@@ -429,7 +429,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   }
 
   const officers: AnimatedOfficer[] = [];
-  for (const [mOff, lat, flip] of [[22, -4.2, false], [301, 4.0, true], [616, -4.2, false]] as const) {
+  for (const [mOff, lat, flip] of [[12, -2.06, false], [295, 2.35, true], [622, -2.06, false]] as const) {
     const f = sampleCorridorFrame(mOff, lat);
     const off = createDishubOfficer();
     off.group.position.set(f.x, f.y + 0.05, f.z);
@@ -439,14 +439,14 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   }
   worldGroup.add(offstreetGroup);
 
-  // 7. Toggleable No-Stopping Signs (Rambu S Coret) along curved corridor
+  // 7. Toggleable No-Stopping Signs (Rambu S Coret) along curved corridor gutter edge
   const noStopSignGroup = new THREE.Group();
   const noStopTex = createNoStopSignTexture();
   const signMat = new THREE.MeshBasicMaterial({ map: noStopTex, transparent: true, side: THREE.DoubleSide });
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.45, metalness: 0.55 });
   for (let m = 28; m <= CORRIDOR.lengthM - 20; m += 56) {
     for (const side of [-1, 1]) {
-      const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.85));
+      const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.28));
       const p = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.75, 8), poleMat);
       p.position.set(f.x, f.y + 1.38, f.z);
       noStopSignGroup.add(p);
@@ -459,7 +459,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   }
   worldGroup.add(noStopSignGroup);
 
-  // 8. ALL REAL OPENSTREETMAP FRONT-ROW BUILDINGS (EXACT GPS POSITIONS, SIZES & CLEARANCES!)
+  // 8. ALL REAL OPENSTREETMAP FRONT-ROW BUILDINGS (PULLED FLUSH TO ROAD EDGE)
   buildOsmFrontBuildings(worldGroup);
 
   // 9. AUTHENTIC PASAR GEGERKALONG AT EXACT SATELLITE / OSM LOCATION (MID-CORRIDOR, 347-375 m)
@@ -471,11 +471,11 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   // 11. ALL 823 REAL OPENSTREETMAP BACKGROUND POLYGON BUILDINGS (MERGED INTO 6 DRAW CALLS!)
   buildOsmBackgroundPolygons(worldGroup);
 
-  // 12. Curved PLN Utility Poles + Sagging Catenary Overhead Cables (clear of Pasar & KPAD mouths)
+  // 12. Curved PLN Utility Poles + Sagging Catenary Overhead Cables (hugging gutter edge)
   const poleXPositions: THREE.Vector3[] = [];
   for (let m = 16; m <= visLen - 16; m += 42) {
     if (m >= 302 && m <= 362) continue;
-    const f = sampleCorridorFrame(m, CORRIDOR.roadWidthM / 2 + 0.95);
+    const f = sampleCorridorFrame(m, CORRIDOR.roadWidthM / 2 + 0.3);
     const pole = createUtilityPole();
     pole.position.set(f.x, f.y, f.z);
     pole.rotation.y = f.yaw;
@@ -521,7 +521,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   // Market shoppers near Pasar Gegerkalong front stalls & blue canopy mouth (320-352 m, West +Z)
   for (let i = 0; i < 6; i++) {
     const mShop = 320 + i * 5.6;
-    const f = sampleCorridorFrame(mShop, CORRIDOR.roadWidthM / 2 + 1.25 + (i % 2) * 0.45);
+    const f = sampleCorridorFrame(mShop, CORRIDOR.roadWidthM / 2 + 0.16 + (i % 2) * 0.08);
     const shopper = createPedestrianMesh({
       id: 900 + i,
       xM: mShop,
@@ -610,8 +610,9 @@ function buildKpadLiftGate(parent: THREE.Group): void {
 }
 
 /**
- * Places all collision-verified OpenStreetMap front-row buildings at their exact GPS footprints,
- * orientations, and elevations along Jalan Gegerkalong Tengah.
+ * Places OpenStreetMap front-row buildings tightly hugging the narrow 3.8 m road gutter (~0.42 m from
+ * asphalt edge) to authentically reflect the cramped corridor where neither road widening nor sidewalks
+ * are physically feasible, while preserving real open pockets for the off-street bays & alley mouths.
  */
 function buildOsmFrontBuildings(parent: THREE.Group): void {
   let kosCount = 0;
@@ -622,13 +623,39 @@ function buildOsmFrontBuildings(parent: THREE.Group): void {
   let usedAlfamart = false;
   let pasarFrontIdx = 0;
 
+  const keepRealSetback = (b: OsmFrontBuilding): boolean => {
+    // Keep Simpang Girang & Simpang Hilir corners open for cross-arterials
+    if (b.distM < 10 || b.distM > CORRIDOR.lengthM - 10) return true;
+    // Keep East Drop-Off Bay (186-214 m) & Jl. Haji Ridho mouth (317 m) open
+    if (b.side === -1 && ((b.distM >= 182 && b.distM <= 218) || (b.distM >= 312 && b.distM <= 322))) return true;
+    // Keep West Parking Lot (262-296 m), KPAD mouth (308 m), & Pasar blue canopy alley (347 m) open
+    if (
+      b.side === 1 &&
+      ((b.distM >= 258 && b.distM <= 300) || (b.distM >= 303 && b.distM <= 314) || (b.distM >= 343 && b.distM <= 352))
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   OSM_FRONT_BUILDINGS.forEach((b: OsmFrontBuilding, idx: number) => {
+    const bWidth = Math.max(4.0, b.width);
+    const bDepth = Math.max(4.2, b.depth);
+    const flush = !keepRealSetback(b);
+    const tightFrame = flush
+      ? sampleCorridorFrame(b.distM, b.side * (CORRIDOR.roadWidthM / 2 + 0.42 + bDepth / 2))
+      : null;
+    const posX = tightFrame ? tightFrame.x : b.cx;
+    const posY = tightFrame ? tightFrame.y : b.y;
+    const posZ = tightFrame ? tightFrame.z : b.cz;
+    const yaw = tightFrame ? tightFrame.yaw : b.angleY;
+
     // Large multi-story boarding house (Kos UPI) footprints in the northern UPI zone
     if (b.levels >= 4 && b.width >= 9 && kosCount < 3) {
       kosCount++;
-      const kos = createDetailedKosBuilding(b.width, b.depth, 4);
-      kos.position.set(b.cx, b.y, b.cz);
-      kos.rotation.y = b.angleY + (b.side === 1 ? Math.PI : 0);
+      const kos = createDetailedKosBuilding(bWidth, bDepth, 4);
+      kos.position.set(posX, posY, posZ);
+      kos.rotation.y = yaw + (b.side === 1 ? Math.PI : 0);
       parent.add(kos);
       return;
     }
@@ -657,8 +684,8 @@ function buildOsmFrontBuildings(parent: THREE.Group): void {
     }
 
     const ruko = createDetailedRuko({
-      width: Math.max(4.0, b.width),
-      depth: Math.max(4.2, b.depth),
+      width: bWidth,
+      depth: bDepth,
       floors: Math.min(3, Math.max(1, b.levels)),
       wallHex: preset.wall,
       trimHex: preset.trim,
@@ -670,12 +697,12 @@ function buildOsmFrontBuildings(parent: THREE.Group): void {
       signAccent: preset.accent,
       awningHex: preset.awning,
       facingDir: b.side === 1 ? -1 : 1,
-      hasBladeSign: preset.blade && b.width >= 6,
-      hasPorchStall: preset.porch && b.width >= 5.2
+      hasBladeSign: preset.blade && bWidth >= 6,
+      hasPorchStall: !flush && preset.porch && bWidth >= 5.2
     });
 
-    ruko.position.set(b.cx, b.y, b.cz);
-    ruko.rotation.y = b.angleY;
+    ruko.position.set(posX, posY, posZ);
+    ruko.rotation.y = yaw;
     parent.add(ruko);
   });
 }

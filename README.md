@@ -56,7 +56,7 @@ gegerkalong-3d-sim/
 
 - **Preset Cepat:** `Isometrik`, `Girang`, `Pasar`, `Hilir`, dan `Denah` (keseluruhan 636 m).
 - **POV Kendaraan (*Chase-Cam* & *Dashcam*):** Klik tombol **`POV Kendaraan`** atau langsung **klik kendaraan 3D mana saja** di jalan untuk mengikutinya, lalu gunakan tombol `Dashcam` / `Ganti` / `Keluar (Esc)`.
-- **POV Pejalan Kaki (1,65 m):** Klik **`POV Pejalan`** untuk membandingkan langsung sudut pandang pejalan kaki di bahu sempit (*Baseline*) vs terlindungi trotoar & bollard (*Skenario 1 & 2*).
+- **POV Pejalan Kaki (1,65 m):** Klik **`POV Pejalan`** untuk merasakan langsung sempitnya ruang tepi jalan yang diapit ruko/kos (tanpa ruang pelebaran maupun trotoar), serta membandingkan kondisi terdesak parkir liar (*Baseline*) vs tepi jalan lega bebas parkir & satu arah (*Skenario 1 & 2*).
 - **Susur Jalan (`0–636 m`) & Tur Otomatis:** Geser bilah **Susur Jalan** di dock bawah untuk meluncur mulus mengikuti lekukan jalan, atau klik **`Tur`** untuk *flythrough* otomatis sepanjang koridor.
 - **Navigasi Bebas:** `W/A/S/D` atau tombol Panah untuk geser sejajar jalan, `Q/E` naik-turun, *scroll* untuk *zoom* menuju kursor, dan `R` untuk kembali ke tampilan Isometrik.
 
