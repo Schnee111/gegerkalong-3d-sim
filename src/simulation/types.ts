@@ -1,12 +1,12 @@
-import type { OneWayDirection, ScenarioKey } from '../config/scenarios';
+import type { OneWayDirection, ScenarioKey, VolumePresetKey } from '../config/scenarios';
 
 export type StopType = 'none' | 'onstreet' | 'dropoff' | 'parking';
 export type StopPhase = 'none' | 'approaching' | 'stopped' | 'done';
 
 export interface SimulationParams {
-  lam: number;     // kendaraan/jam
+  lam: number;     // kendaraan fisik/jam
   pStop: number;   // persen (0-40)
-  stopDur: number; // detik
+  stopDur: number; // detik rata-rata
 }
 
 export interface VehicleAgent {
@@ -17,10 +17,11 @@ export interface VehicleAgent {
   widthM: number;
   heightM: number;
   maxSpeedMs: number;
+  emp: number;
   speedMs: number;
-  dir: 1 | -1;
-  lane: 1 | -1;
-  xM: number;      // 0..355 (relative to Simpang Girang)
+  dir: 1 | -1;  // 1 = Selatan (Girang -> Pasar), -1 = Utara (Pasar -> Girang)
+  lane: 1 | -1; // Indonesia Lajur Kiri: -1 = Timur (-Z, kiri saat ke Selatan), +1 = Barat (+Z, kiri saat ke Utara)
+  xM: number;   // 0..355 (relatif terhadap Simpang Girang)
   zOffsetM: number;
   stopType: StopType;
   stopTargetM: number;
@@ -53,7 +54,11 @@ export interface SimulationMetrics {
   currentQueue: number;
   maxQueue: number;
   spillbackQueue: number;
+  spillbackOriginLabel: string;
   throughputPerHour: number;
+  throughputSmpPerHour: number;
+  demandSmpPerHour: number;
+  degreeOfSaturation: number;
   servedCount: number;
   activeVehicles: number;
   losGrade: 'A-B' | 'C-D' | 'E-F';
@@ -73,10 +78,12 @@ export interface SnapshotRecord {
 
 export interface EngineStateView {
   scenario: ScenarioKey;
+  volumePreset: VolumePresetKey;
   oneWayDir: OneWayDirection;
   params: SimulationParams;
   vehicles: readonly VehicleAgent[];
   pedestrians: readonly PedestrianAgent[];
   metrics: SimulationMetrics;
   history: readonly HistoryPoint[];
+  historyVersion: number;
 }
