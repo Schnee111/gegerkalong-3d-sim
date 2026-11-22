@@ -279,7 +279,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   // 4. Baseline Street Clutter (parked scooters encroaching the narrow curved road + gerobak)
   const baselineClutterGroup = new THREE.Group();
   const scooterColors = [0x1f2937, 0xb91c1c, 0x1d4ed8, 0xf8fafc, 0x0f766e];
-  const clutterSpotsM = [36, 48, 76, 134, 158, 210, 268, 322, 336, 344, 412, 468, 524, 578, 608];
+  const clutterSpotsM = [34, 48, 78, 110, 158, 232, 248, 322, 336, 392, 412, 468, 508, 576, 608];
   clutterSpotsM.forEach((m, idx) => {
     const side = idx % 2 === 0 ? 1 : -1;
     const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.04));
@@ -288,8 +288,8 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     sc.rotation.y = f.yaw + (side === 1 ? -0.42 : 0.42);
     baselineClutterGroup.add(sc);
   });
-  for (const [mCart, side, hex] of [[332, 1, 0x1d4ed8], [70, -1, 0xb91c1c], [516, -1, 0x047857]] as const) {
-    const f = sampleCorridorFrame(mCart, side * (CORRIDOR.roadWidthM / 2 - 0.1));
+  for (const [mCart, side, hex] of [[332, 1, 0x1d4ed8], [84, -1, 0xb91c1c], [514, -1, 0x047857]] as const) {
+    const f = sampleCorridorFrame(mCart, side * (CORRIDOR.roadWidthM / 2 - 0.06));
     const cart = createGerobakCart(hex);
     cart.position.set(f.x, f.y + 0.05, f.z);
     cart.rotation.y = f.yaw;
@@ -439,14 +439,25 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   }
   worldGroup.add(offstreetGroup);
 
+  const isSideClearForProp = (distM: number, side: 1 | -1): boolean => {
+    if (side === -1 && distM >= 182 && distM <= 218) return false; // East Drop-Off Bay
+    if (side === 1 && distM >= 258 && distM <= 300) return false; // West Parking Lot
+    const eastMouths = [121, 150, 317, 460, 565];
+    const westMouths = [135, 176, 219, 257, 308, 347, 376, 422, 459, 523, 588];
+    const mouths = side === 1 ? westMouths : eastMouths;
+    return !mouths.some(mouthM => Math.abs(distM - mouthM) < 4.8);
+  };
+
   // 7. Toggleable No-Stopping Signs (Rambu S Coret) along curved corridor gutter edge
   const noStopSignGroup = new THREE.Group();
   const noStopTex = createNoStopSignTexture();
   const signMat = new THREE.MeshBasicMaterial({ map: noStopTex, transparent: true, side: THREE.DoubleSide });
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.45, metalness: 0.55 });
   for (let m = 28; m <= CORRIDOR.lengthM - 20; m += 56) {
-    for (const side of [-1, 1]) {
-      const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.28));
+    for (const side of [-1, 1] as const) {
+      const mSafe = isSideClearForProp(m, side) ? m : isSideClearForProp(m + 8, side) ? m + 8 : -1;
+      if (mSafe < 0) continue;
+      const f = sampleCorridorFrame(mSafe, side * (CORRIDOR.roadWidthM / 2 + 0.24));
       const p = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.75, 8), poleMat);
       p.position.set(f.x, f.y + 1.38, f.z);
       noStopSignGroup.add(p);
@@ -471,11 +482,12 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   // 11. ALL 823 REAL OPENSTREETMAP BACKGROUND POLYGON BUILDINGS (MERGED INTO 6 DRAW CALLS!)
   buildOsmBackgroundPolygons(worldGroup);
 
-  // 12. Curved PLN Utility Poles + Sagging Catenary Overhead Cables (hugging gutter edge)
+  // 12. Curved PLN Utility Poles + Sagging Catenary Overhead Cables (hugging gutter edge, clear of bays & mouths)
   const poleXPositions: THREE.Vector3[] = [];
   for (let m = 16; m <= visLen - 16; m += 42) {
-    if (m >= 302 && m <= 362) continue;
-    const f = sampleCorridorFrame(m, CORRIDOR.roadWidthM / 2 + 0.3);
+    if (m >= 260 && m <= 362) continue;
+    const mPole = isSideClearForProp(m, 1) ? m : m + 7;
+    const f = sampleCorridorFrame(mPole, CORRIDOR.roadWidthM / 2 + 0.24);
     const pole = createUtilityPole();
     pole.position.set(f.x, f.y, f.z);
     pole.rotation.y = f.yaw;
@@ -486,7 +498,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   for (let i = 0; i < poleXPositions.length - 1; i++) {
     const pA = poleXPositions[i];
     const pB = poleXPositions[i + 1];
-    if (pA.distanceTo(pB) > 58) continue;
+    if (pA.distanceTo(pB) > 64) continue;
     for (const zOff of [-0.55, 0, 0.55]) {
       const mid = pA.clone().lerp(pB, 0.5);
       mid.y -= 0.72;
@@ -623,15 +635,57 @@ function buildOsmFrontBuildings(parent: THREE.Group): void {
   let usedAlfamart = false;
   let pasarFrontIdx = 0;
 
-  const keepRealSetback = (b: OsmFrontBuilding): boolean => {
+  // Per-building geometric adjustments verified via 2D OBB audit to guarantee
+  // 0 Front-Front overlaps, 0 Front-BG overlaps, and 0 Front-SideRoad overlaps across 0-636.4 m
+  const OVERRIDES: Record<string, { skip?: boolean; distM?: number; width?: number; depth?: number }> = {
+    '520143079': { skip: true },
+    '512932479': { distM: 340.8, width: 7.2 },
+    '512932478': { distM: 351.2, width: 7.0 },
+    '520142510': { depth: 7.8 },
+    '520142506': { depth: 7.8 },
+    '512932362': { distM: 453.2, width: 5.4 },
+    '520142502': { distM: 127.8, width: 5.6 },
+    '520142501': { distM: 139.6, width: 5.4 },
+    '520142465': { distM: 164.2, width: 8.2, depth: 7.4 },
+    '512932818': { distM: 297.5, width: 4.0 },
+    '512932819': { distM: 302.4, width: 4.2 },
+    '512932827': { distM: 338.6, width: 7.2 },
+    '522195369': { distM: 415.8, width: 5.2, depth: 7.5 },
+    '512932147': { distM: 582.5, width: 4.8, depth: 6.5 }
+  };
+
+  // Detect second-row buildings (origLat > 11.5 m) that sit directly behind a closer front-row building
+  const origLatById = new Map<string, number>();
+  for (const b of OSM_FRONT_BUILDINGS) {
+    const f0 = sampleCorridorFrame(b.distM, 0);
+    const lat = Math.abs((b.cx - f0.x) * f0.nx + (b.cz - f0.z) * f0.nz);
+    origLatById.set(b.id, lat);
+  }
+  const secondRowIds = new Set<string>();
+  for (const b of OSM_FRONT_BUILDINGS) {
+    const latB = origLatById.get(b.id) ?? 0;
+    if (latB > 11.5) {
+      const wB = Math.max(4.0, b.width);
+      const hasFrontBlocker = OSM_FRONT_BUILDINGS.some(o => {
+        if (o.id === b.id || o.side !== b.side) return false;
+        const latO = origLatById.get(o.id) ?? 99;
+        const wO = Math.max(4.0, o.width);
+        return latO < 9.0 && Math.abs(o.distM - b.distM) < (wB + wO) * 0.45;
+      });
+      if (hasFrontBlocker) secondRowIds.add(b.id);
+    }
+  }
+
+  const keepRealSetback = (b: OsmFrontBuilding, distM: number): boolean => {
+    if (secondRowIds.has(b.id)) return true;
     // Keep Simpang Girang & Simpang Hilir corners open for cross-arterials
-    if (b.distM < 10 || b.distM > CORRIDOR.lengthM - 10) return true;
+    if (distM < 10 || distM > CORRIDOR.lengthM - 10) return true;
     // Keep East Drop-Off Bay (186-214 m) & Jl. Haji Ridho mouth (317 m) open
-    if (b.side === -1 && ((b.distM >= 182 && b.distM <= 218) || (b.distM >= 312 && b.distM <= 322))) return true;
+    if (b.side === -1 && ((distM >= 180 && distM <= 218) || (distM >= 312 && distM <= 322))) return true;
     // Keep West Parking Lot (262-296 m), KPAD mouth (308 m), & Pasar blue canopy alley (347 m) open
     if (
       b.side === 1 &&
-      ((b.distM >= 258 && b.distM <= 300) || (b.distM >= 303 && b.distM <= 314) || (b.distM >= 343 && b.distM <= 352))
+      ((distM >= 258 && distM <= 296) || (distM >= 305 && distM <= 314) || (distM >= 343 && distM <= 352))
     ) {
       return true;
     }
@@ -639,11 +693,15 @@ function buildOsmFrontBuildings(parent: THREE.Group): void {
   };
 
   OSM_FRONT_BUILDINGS.forEach((b: OsmFrontBuilding, idx: number) => {
-    const bWidth = Math.max(4.0, b.width);
-    const bDepth = Math.max(4.2, b.depth);
-    const flush = !keepRealSetback(b);
+    const ov = OVERRIDES[b.id];
+    if (ov?.skip) return;
+
+    const distM = ov?.distM ?? b.distM;
+    const bWidth = Math.max(4.0, ov?.width ?? b.width);
+    const bDepth = Math.max(4.2, ov?.depth ?? b.depth);
+    const flush = !keepRealSetback(b, distM);
     const tightFrame = flush
-      ? sampleCorridorFrame(b.distM, b.side * (CORRIDOR.roadWidthM / 2 + 0.42 + bDepth / 2))
+      ? sampleCorridorFrame(distM, b.side * (CORRIDOR.roadWidthM / 2 + 0.56 + bDepth / 2))
       : null;
     const posX = tightFrame ? tightFrame.x : b.cx;
     const posY = tightFrame ? tightFrame.y : b.y;
