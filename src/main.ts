@@ -30,6 +30,7 @@ function bootstrap(): void {
       engine.setScenario(key);
       const view = engine.getStateView();
       hud.syncScenarioSelection(view);
+      hud.syncState(view);
       charts.updateLive(view.history);
       lastHistoryVersion = view.historyVersion;
     },
@@ -37,6 +38,7 @@ function bootstrap(): void {
       engine.setVolumePreset(preset);
       const view = engine.getStateView();
       hud.syncScenarioSelection(view);
+      hud.syncState(view);
       charts.updateLive(view.history);
       lastHistoryVersion = view.historyVersion;
     },
@@ -47,6 +49,7 @@ function bootstrap(): void {
       hud.syncLightingSelection(lightMode);
       const view = engine.getStateView();
       hud.syncScenarioSelection(view);
+      hud.syncState(view);
       charts.updateLive(view.history);
       lastHistoryVersion = view.historyVersion;
     },
@@ -84,6 +87,7 @@ function bootstrap(): void {
     onReset: () => {
       engine.reset();
       const view = engine.getStateView();
+      hud.syncState(view);
       charts.updateLive(view.history);
       lastHistoryVersion = view.historyVersion;
     },
@@ -130,6 +134,7 @@ function bootstrap(): void {
   window.addEventListener('beforeunload', () => scene3d.dispose());
 
   let lastNow = performance.now();
+  let lastHudSyncNow = -999;
   const frame = (now: number): void => {
     const realDt = Math.max(0, Math.min(0.05, (now - lastNow) / 1000));
     lastNow = now;
@@ -145,7 +150,11 @@ function bootstrap(): void {
     const view = engine.getStateView();
     const totalSimDt = running ? realDt * speed : 0;
     const { hover, cameraStatus } = scene3d.syncAndRender(view, realDt, totalSimDt);
-    hud.syncState(view);
+
+    if (now - lastHudSyncNow >= 80) {
+      lastHudSyncNow = now;
+      hud.syncState(view);
+    }
     hud.syncCameraStatus(cameraStatus);
     hud.renderTooltip(hover);
 
