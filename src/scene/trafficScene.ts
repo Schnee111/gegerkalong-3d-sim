@@ -132,6 +132,8 @@ export class TrafficScene3D {
   private corridor: CorridorHandles;
 
   private sunLight: THREE.DirectionalLight;
+  private sunOffset = new THREE.Vector3(-110, 175, 115);
+  private lastHighViewShadow = false;
   private hemiLight: THREE.HemisphereLight;
   private fillLight: THREE.DirectionalLight;
   private skyMorning: THREE.Texture;
@@ -213,24 +215,24 @@ export class TrafficScene3D {
       this.desiredTarget = null;
     });
 
-    // High-Resolution 4096x4096 Shadow Sunlight covering the entire 636 m corridor
+    // Dynamic camera-following 2048x2048 shadow sunlight (75% less shadow pixel fill + sharper local shadows)
     this.hemiLight = new THREE.HemisphereLight(0xf2f8ff, 0xb8b3a4, 0.88);
     this.scene.add(this.hemiLight);
 
     this.sunLight = new THREE.DirectionalLight(0xfff4de, 1.65);
-    this.sunLight.position.set(-110, 175, 115);
+    this.sunLight.position.copy(this.sunOffset);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 4096;
-    this.sunLight.shadow.mapSize.height = 4096;
-    this.sunLight.shadow.camera.near = 20;
-    this.sunLight.shadow.camera.far = 820;
-    const d = 385;
-    this.sunLight.shadow.camera.left = -d;
-    this.sunLight.shadow.camera.right = d;
-    this.sunLight.shadow.camera.top = 215;
-    this.sunLight.shadow.camera.bottom = -215;
+    this.sunLight.shadow.mapSize.width = 2048;
+    this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.camera.near = 15;
+    this.sunLight.shadow.camera.far = 650;
+    this.sunLight.shadow.camera.left = -165;
+    this.sunLight.shadow.camera.right = 165;
+    this.sunLight.shadow.camera.top = 125;
+    this.sunLight.shadow.camera.bottom = -125;
     this.sunLight.shadow.bias = -0.00035;
     this.scene.add(this.sunLight);
+    this.scene.add(this.sunLight.target);
 
     this.fillLight = new THREE.DirectionalLight(0xcbe0f7, 0.42);
     this.fillLight.position.set(100, 68, -80);
@@ -238,7 +240,12 @@ export class TrafficScene3D {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.2, 0.45, 0.92);
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(Math.max(1, Math.floor(w / 2)), Math.max(1, Math.floor(h / 2))),
+      0.2,
+      0.45,
+      0.92
+    );
     this.composer.addPass(this.bloomPass);
 
     this.tiltShiftPass = new ShaderPass(TiltShiftShader);
@@ -263,7 +270,7 @@ export class TrafficScene3D {
       this.scene.environment = this.skyMorning;
       this.sunLight.color.setHex(0xfff4de);
       this.sunLight.intensity = 1.65;
-      this.sunLight.position.set(-110, 175, 115);
+      this.sunOffset.set(-110, 175, 115);
       this.hemiLight.color.setHex(0xf2f8ff);
       this.hemiLight.groundColor.setHex(0xb8b3a4);
       this.hemiLight.intensity = 0.88;
@@ -275,7 +282,7 @@ export class TrafficScene3D {
       this.scene.environment = this.skyAfternoon;
       this.sunLight.color.setHex(0xffb56b);
       this.sunLight.intensity = 1.92;
-      this.sunLight.position.set(140, 72, 110);
+      this.sunOffset.set(140, 72, 110);
       this.hemiLight.color.setHex(0xffd7b0);
       this.hemiLight.groundColor.setHex(0x827366);
       this.hemiLight.intensity = 0.7;
@@ -428,6 +435,7 @@ export class TrafficScene3D {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
     this.composer.setSize(w, h);
+    this.bloomPass.resolution.set(Math.max(1, Math.floor(w / 2)), Math.max(1, Math.floor(h / 2)));
     this.tiltShiftPass.uniforms.uResolution.value.set(w, h);
   }
 
@@ -538,7 +546,7 @@ export class TrafficScene3D {
     // 5. Update camera based on active mode (Free+WASD / Tour / Vehicle POV / Pedestrian POV)
     const camStatus = this.updateCameraController(view, realDt);
 
-    // 6. Smooth FOV & optical blur + adaptive fog
+    // 6. Smooth FOV, dynamic shadow frustum, optical blur bypass + adaptive fog
     if (Math.abs(this.camera.fov - this.desiredFov) > 0.05) {
       this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, this.desiredFov, Math.min(1, realDt * 6));
       this.camera.updateProjectionMatrix();
@@ -547,13 +555,27 @@ export class TrafficScene3D {
     const camHeight = this.camera.position.y;
     const isHighView = camHeight > 125;
     const isStreetPov = this.cameraMode === 'vehicle' || this.cameraMode === 'pedestrian';
+
+    // Center directional sunlight shadow frustum around camera focus target
+    this.sunLight.target.position.copy(this.controls.target);
+    this.sunLight.position.copy(this.controls.target).add(this.sunOffset);
+    this.sunLight.target.updateMatrixWorld();
+    if (isHighView !== this.lastHighViewShadow) {
+      this.lastHighViewShadow = isHighView;
+      const rx = isHighView ? 385 : 165;
+      const ry = isHighView ? 215 : 125;
+      this.sunLight.shadow.camera.left = -rx;
+      this.sunLight.shadow.camera.right = rx;
+      this.sunLight.shadow.camera.top = ry;
+      this.sunLight.shadow.camera.bottom = -ry;
+      this.sunLight.shadow.camera.updateProjectionMatrix();
+    }
+
     const effectiveBlur = isHighView || isStreetPov ? 0.0 : this.targetBlurStrength;
     const curBlur = this.tiltShiftPass.uniforms.uBlurStrength.value as number;
-    this.tiltShiftPass.uniforms.uBlurStrength.value = THREE.MathUtils.lerp(
-      curBlur,
-      effectiveBlur,
-      Math.min(1, realDt * 6)
-    );
+    const nextBlur = THREE.MathUtils.lerp(curBlur, effectiveBlur, Math.min(1, realDt * 6));
+    this.tiltShiftPass.uniforms.uBlurStrength.value = nextBlur;
+    this.tiltShiftPass.enabled = nextBlur > 0.015;
 
     const fog = this.scene.fog as THREE.Fog;
     const desiredNear = isStreetPov ? 110 : isHighView ? camHeight + 240 : 195;
