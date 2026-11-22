@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulasi 3D Jalan Gegerkalong Tengah (355 m) | Kelompok 9 MSTR-UPI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body>
+  <div class="viewport-shell">
+    <main id="canvasMount" aria-label="Viewport simulasi lalu lintas 3D Jalan Gegerkalong Tengah"></main>
+
+    <header class="studio-topbar">
+      <div class="title-plaque">
+        <h1>Jl. Gegerkalong Tengah · Segmen Utara (355 m)</h1>
+        <div class="title-meta">
+          <span>Kelompok 9 · MSTR-Transportasi FPMIPA UPI</span>
+          <span class="clock-pill" id="simClock">07:00:00</span>
+        </div>
+      </div>
+
+      <nav class="toolbar-cluster" aria-label="Kontrol kamera dan pemutaran">
+        <div class="btn-group" role="group" aria-label="Preset sudut kamera 3D">
+          <button type="button" class="tool-btn is-active" data-camera="isometric" aria-pressed="true">Isometrik</button>
+          <button type="button" class="tool-btn" data-camera="girang" aria-pressed="false">Simpang Girang</button>
+          <button type="button" class="tool-btn" data-camera="pasar" aria-pressed="false">Pasar</button>
+          <button type="button" class="tool-btn" data-camera="topdown" aria-pressed="false">Denah</button>
+        </div>
+
+        <div class="btn-group" role="group" aria-label="Pencahayaan waktu">
+          <button type="button" class="tool-btn is-active" data-lighting="morning" aria-pressed="true">Pagi</button>
+          <button type="button" class="tool-btn" data-lighting="afternoon" aria-pressed="false">Sore</button>
+        </div>
+
+        <button type="button" id="btnPlayPause" class="action-btn primary" aria-pressed="false">Jeda</button>
+        <button type="button" id="btnReset" class="action-btn">Reset</button>
+
+        <div class="btn-group" role="group" aria-label="Kecepatan simulasi">
+          <button type="button" class="tool-btn is-active" data-speed="1" aria-pressed="true">1x</button>
+          <button type="button" class="tool-btn" data-speed="2" aria-pressed="false">2x</button>
+          <button type="button" class="tool-btn" data-speed="4" aria-pressed="false">4x</button>
+        </div>
+
+        <button type="button" id="btnToggleDrawer" class="action-btn" aria-expanded="true" aria-controls="analysisDrawer">
+          Tutup Analisis
+        </button>
+      </nav>
+    </header>
+
+    <div id="spillbackBadge" class="spillback-banner" role="status" hidden></div>
+
+    <div id="vehicleTooltip" class="vehicle-tooltip" role="tooltip" hidden></div>
+
+    <section class="bottom-dock" aria-label="Pemilihan skenario dan metrik utama">
+      <div class="dock-panel">
+        <button type="button" class="scenario-tab is-active" data-scenario="baseline" aria-pressed="true">
+          <span class="scn-code">Skenario 0</span>
+          <span class="scn-name">Baseline Eksisting</span>
+        </button>
+        <button type="button" class="scenario-tab" data-scenario="sk1" aria-pressed="false">
+          <span class="scn-code">Skenario 1</span>
+          <span class="scn-name">Drop-Off &amp; Parkir</span>
+        </button>
+        <button type="button" class="scenario-tab" data-scenario="sk2" aria-pressed="false">
+          <span class="scn-code">Skenario 2</span>
+          <span class="scn-name">Satu Arah Bergantian</span>
+        </button>
+
+        <div id="oneWayControls" class="dir-switch" role="group" aria-label="Arah jam sibuk" hidden>
+          <button type="button" class="tool-btn is-active" data-oneway="1" aria-pressed="true">Pagi (Girang → Hilir)</button>
+          <button type="button" class="tool-btn" data-oneway="-1" aria-pressed="false">Sore (Hilir → Girang)</button>
+        </div>
+      </div>
+
+      <div class="dock-panel telemetry-strip" aria-live="polite">
+        <div class="kpi-cell">
+          <span class="kpi-label">Tunggu Rata-Rata</span>
+          <span id="kpiWait" class="kpi-value">0.0 dtk</span>
+          <span class="kpi-sub">Target &lt; 60 dtk</span>
+        </div>
+        <div class="kpi-cell">
+          <span class="kpi-label">Antrean</span>
+          <span id="kpiQueue" class="kpi-value">0</span>
+          <span id="kpiMaxQueue" class="kpi-sub">maks 0</span>
+        </div>
+        <div class="kpi-cell">
+          <span class="kpi-label">Keluar / Jam</span>
+          <span id="kpiThroughput" class="kpi-value">0 /jam</span>
+          <span class="kpi-sub">Kapasitas segmen</span>
+        </div>
+        <span id="kpiLos" class="los-chip" data-grade="A-B">LOS A-B · Lancar</span>
+      </div>
+    </section>
+
+    <aside id="analysisDrawer" class="analysis-drawer" aria-label="Panel analisis dan parameter simulasi">
+      <div class="drawer-section">
+        <div class="section-head">
+          <h2>Ringkasan Kondisi Skenario</h2>
+        </div>
+        <p id="scenarioInsight" class="insight-text"></p>
+        <div id="kpiSafety" class="safety-line"></div>
+        <div class="controls-hint">Seret untuk memutar kamera 3D, gulir untuk zoom, arahkan kursor ke kendaraan untuk inspeksi.</div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="section-head">
+          <h2>Parameter Simulasi (Live)</h2>
+          <button type="button" id="btnPresetReset" class="link-btn">Preset LKM-2</button>
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-head">
+            <label for="sliderLam">Laju Kedatangan (Poisson)</label>
+            <output for="sliderLam"><span id="valLam">350</span> kend./jam</output>
+          </div>
+          <input id="sliderLam" type="range" min="150" max="550" step="10" value="350" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-head">
+            <label for="sliderPStop">Peluang Hambatan Samping</label>
+            <output for="sliderPStop"><span id="valPStop">20</span>%</output>
+          </div>
+          <input id="sliderPStop" type="range" min="0" max="40" step="1" value="20" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-head">
+            <label for="sliderStopDur">Durasi Parkir / Bongkar Muat</label>
+            <output for="sliderStopDur"><span id="valStopDur">40</span> detik</output>
+          </div>
+          <input id="sliderStopDur" type="range" min="10" max="60" step="5" value="40" />
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="section-head">
+          <h2>Grafik Antrean Real-Time</h2>
+        </div>
+        <div class="chart-box">
+          <canvas id="liveChart"></canvas>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="section-head">
+          <h2>Benchmark SimPy (10 Replikasi)</h2>
+          <select id="selectBenchMetric" class="bench-select" aria-label="Pilih metrik benchmark SimPy">
+            <option value="wait">Waktu Tunggu</option>
+            <option value="maxq">Antrean Maks</option>
+            <option value="thr">Keluar / Jam</option>
+          </select>
+        </div>
+        <div class="chart-box">
+          <canvas id="benchChart"></canvas>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="section-head">
+          <h2>Snapshot Presentasi</h2>
+          <div>
+            <button type="button" id="btnSnapshot" class="action-btn primary">Rekam Snapshot</button>
+            <button type="button" id="btnClearSnapshots" class="link-btn">Hapus</button>
+          </div>
+        </div>
+        <table class="snap-table">
+          <thead>
+            <tr>
+              <th>Skenario</th>
+              <th class="num">Tunggu</th>
+              <th class="num">Maks</th>
+              <th class="num">/Jam</th>
+            </tr>
+          </thead>
+          <tbody id="snapshotBody"></tbody>
+        </table>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
