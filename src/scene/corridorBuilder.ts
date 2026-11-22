@@ -143,7 +143,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   mainRoad.receiveShadow = true;
   worldGroup.add(mainRoad);
 
-  // 3. All Real OpenStreetMap Side Roads & Alleys (Simpang Girang, Gang Al Barkah, Gg 9, KPAD Kartika II, Jl. Haji Ridho, Lorong Pasar)
+  // 3. All Real OpenStreetMap Side Roads & Alleys (batched into 2 draw calls: major & alley)
   const alleyMat = new THREE.MeshStandardMaterial({
     color: 0xc2c6cc,
     map: asphalt.map,
@@ -152,33 +152,69 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     polygonOffsetFactor: 1,
     polygonOffsetUnits: 1
   });
+  const majorRoadGeos: THREE.BufferGeometry[] = [];
+  const alleyRoadGeos: THREE.BufferGeometry[] = [];
   for (const sr of OSM_SIDE_ROADS) {
     const isMajor = sr.name.toLowerCase().includes('girang') || sr.highway === 'tertiary' || sr.highway === 'secondary';
     const srGeo = createPolylineRoadGeometry(sr.points, sr.width, isMajor ? 0.032 : 0.02);
-    const srMesh = new THREE.Mesh(srGeo, isMajor ? roadMat : alleyMat);
-    srMesh.receiveShadow = true;
-    worldGroup.add(srMesh);
+    if (isMajor) {
+      majorRoadGeos.push(srGeo);
+    } else {
+      alleyRoadGeos.push(srGeo);
+    }
+  }
+  if (majorRoadGeos.length > 0) {
+    const mergedMajor = mergeGeometries(majorRoadGeos, false);
+    majorRoadGeos.forEach(g => g.dispose());
+    if (mergedMajor) {
+      const mMesh = new THREE.Mesh(mergedMajor, roadMat);
+      mMesh.receiveShadow = true;
+      worldGroup.add(mMesh);
+    }
+  }
+  if (alleyRoadGeos.length > 0) {
+    const mergedAlley = mergeGeometries(alleyRoadGeos, false);
+    alleyRoadGeos.forEach(g => g.dispose());
+    if (mergedAlley) {
+      const aMesh = new THREE.Mesh(mergedAlley, alleyMat);
+      aMesh.receiveShadow = true;
+      worldGroup.add(aMesh);
+    }
   }
 
-  // Concrete drainage gutters + iron grates hugging both curved road edges (no sidewalk in Baseline)
+  // Concrete drainage gutters + iron grates hugging both curved road edges (batched into 2 draw calls)
   const gutterMat = new THREE.MeshStandardMaterial({ color: 0x8c929c, roughness: 0.88 });
   const grateMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.55, metalness: 0.65 });
+  const gutterGeos: THREE.BufferGeometry[] = [];
+  const grateGeos: THREE.BufferGeometry[] = [];
+  const dummyXform = new THREE.Object3D();
+  dummyXform.rotation.order = 'YXZ';
+
   for (const sideSign of [-1, 1]) {
     const gutterLat = sideSign * (CORRIDOR.roadWidthM / 2 + 0.17);
-    const gutterGeo = createCorridorRibbonGeometry(0, visLen, gutterLat, 0.34, 0.045, 3.0, 6.0);
-    const gutter = new THREE.Mesh(gutterGeo, gutterMat);
-    gutter.receiveShadow = true;
-    worldGroup.add(gutter);
+    gutterGeos.push(createCorridorRibbonGeometry(0, visLen, gutterLat, 0.34, 0.045, 3.0, 6.0));
 
     for (let m = 16; m < visLen - 16; m += 24) {
       const f = sampleCorridorFrame(m, gutterLat);
-      const grate = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.025, 0.28), grateMat);
-      grate.position.set(f.x, f.y + 0.055, f.z);
-      grate.rotation.order = 'YXZ';
-      grate.rotation.y = f.yaw;
-      grate.rotation.z = f.pitch;
-      worldGroup.add(grate);
+      const grateGeo = new THREE.BoxGeometry(0.85, 0.025, 0.28);
+      dummyXform.position.set(f.x, f.y + 0.055, f.z);
+      dummyXform.rotation.set(0, f.yaw, f.pitch);
+      dummyXform.updateMatrix();
+      grateGeo.applyMatrix4(dummyXform.matrix);
+      grateGeos.push(grateGeo);
     }
+  }
+  const mergedGutters = mergeGeometries(gutterGeos, false);
+  gutterGeos.forEach(g => g.dispose());
+  if (mergedGutters) {
+    const gMesh = new THREE.Mesh(mergedGutters, gutterMat);
+    gMesh.receiveShadow = true;
+    worldGroup.add(gMesh);
+  }
+  const mergedGrates = mergeGeometries(grateGeos, false);
+  grateGeos.forEach(g => g.dispose());
+  if (mergedGrates) {
+    worldGroup.add(new THREE.Mesh(mergedGrates, grateMat));
   }
 
   // Speed bumps flanking real Pasar Gegerkalong zone (314 m & 358 m)
@@ -192,7 +228,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     worldGroup.add(bump);
   }
 
-  // Zebra crosswalks at Simpang Girang (4 m), Pasar Gegerkalong (351 m), and Simpang Hilir (630 m)
+  // Zebra crosswalks, arterial center dashes, and continuous edge lines (batched into 1 draw call)
   const stripeMat = new THREE.MeshStandardMaterial({
     color: 0xf4f4f0,
     roughness: 0.68,
@@ -200,15 +236,16 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2
   });
+  const stripeGeos: THREE.BufferGeometry[] = [];
   for (const mZebra of [4, CORRIDOR.northSegmentM - 4, CORRIDOR.lengthM - 6]) {
     for (let s = -1.35; s <= 1.35; s += 0.68) {
       const f = sampleCorridorFrame(mZebra, s);
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.02, 0.34), stripeMat);
-      stripe.position.set(f.x, f.y + 0.072, f.z);
-      stripe.rotation.order = 'YXZ';
-      stripe.rotation.y = f.yaw;
-      stripe.rotation.z = f.pitch;
-      worldGroup.add(stripe);
+      const zGeo = new THREE.BoxGeometry(1.9, 0.02, 0.34);
+      dummyXform.position.set(f.x, f.y + 0.072, f.z);
+      dummyXform.rotation.set(0, f.yaw, f.pitch);
+      dummyXform.updateMatrix();
+      zGeo.applyMatrix4(dummyXform.matrix);
+      stripeGeos.push(zGeo);
     }
   }
 
@@ -222,26 +259,34 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
       const yaw = -Math.atan2(b.z - a.z, b.x - a.x);
       for (let d = 3; d < segLen - 3; d += 7.5) {
         const t = d / segLen;
-        const dash = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.02, 0.14), stripeMat);
-        dash.position.set(a.x + t * (b.x - a.x), a.y + 0.068, a.z + t * (b.z - a.z));
-        dash.rotation.y = yaw;
-        worldGroup.add(dash);
+        const dashGeo = new THREE.BoxGeometry(3.2, 0.02, 0.14);
+        dummyXform.position.set(a.x + t * (b.x - a.x), a.y + 0.068, a.z + t * (b.z - a.z));
+        dummyXform.rotation.set(0, yaw, 0);
+        dummyXform.updateMatrix();
+        dashGeo.applyMatrix4(dummyXform.matrix);
+        stripeGeos.push(dashGeo);
       }
     }
   }
 
   // Continuous crisp edge lines (no center divider on authentic 3.8 m narrow street)
   for (const edgeSign of [-1, 1]) {
-    const edgeGeo = createCorridorRibbonGeometry(
-      0,
-      visLen,
-      edgeSign * (CORRIDOR.roadWidthM / 2 - 0.16),
-      0.11,
-      0.072,
-      3.0,
-      10
+    stripeGeos.push(
+      createCorridorRibbonGeometry(
+        0,
+        visLen,
+        edgeSign * (CORRIDOR.roadWidthM / 2 - 0.16),
+        0.11,
+        0.072,
+        3.0,
+        10
+      )
     );
-    worldGroup.add(new THREE.Mesh(edgeGeo, stripeMat));
+  }
+  const mergedStripes = mergeGeometries(stripeGeos, false);
+  stripeGeos.forEach(g => g.dispose());
+  if (mergedStripes) {
+    worldGroup.add(new THREE.Mesh(mergedStripes, stripeMat));
   }
 
   // Flashing amber warning beacon + Convex Safety Mirror + Green Street Name Signs at Girang & Hilir
@@ -495,6 +540,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     poleXPositions.push(new THREE.Vector3(f.x, f.y + 7.55, f.z));
   }
   const cableMat = new THREE.LineBasicMaterial({ color: 0x27272a });
+  const cableSegmentPts: THREE.Vector3[] = [];
   for (let i = 0; i < poleXPositions.length - 1; i++) {
     const pA = poleXPositions[i];
     const pB = poleXPositions[i + 1];
@@ -507,8 +553,14 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
         new THREE.Vector3(mid.x, mid.y, mid.z + zOff),
         new THREE.Vector3(pB.x, pB.y, pB.z + zOff)
       );
-      worldGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(10)), cableMat));
+      const pts = curve.getPoints(10);
+      for (let k = 0; k < pts.length - 1; k++) {
+        cableSegmentPts.push(pts[k], pts[k + 1]);
+      }
     }
+  }
+  if (cableSegmentPts.length > 0) {
+    worldGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(cableSegmentPts), cableMat));
   }
 
   // 13. Real Intersection Portals & Mid-Corridor LKM-2 Marker (verified OSM distances & Open-Meteo DEM)
@@ -1339,31 +1391,46 @@ function buildCurvedRoadArrows(mode: 'twoway' | 'pagi' | 'sore'): THREE.Group {
     roughness: 0.58
   });
 
+  const geos: THREE.BufferGeometry[] = [];
   for (let m = 28; m <= CORRIDOR.lengthM - 24; m += 48) {
     if (mode === 'twoway') {
       // Indonesian Left-Hand Traffic: dir=1 (South) on East (-laneOffsetZ), dir=-1 (North) on West (+laneOffsetZ)
-      group.add(createCurvedRoadArrow(m, -CORRIDOR.laneOffsetZ, 1, arrowMat));
-      group.add(createCurvedRoadArrow(m + 20, CORRIDOR.laneOffsetZ, -1, arrowMat));
+      pushCurvedRoadArrowGeos(geos, m, -CORRIDOR.laneOffsetZ, 1);
+      pushCurvedRoadArrowGeos(geos, m + 20, CORRIDOR.laneOffsetZ, -1);
     } else if (mode === 'pagi') {
-      group.add(createCurvedRoadArrow(m, 0, 1, arrowMat));
+      pushCurvedRoadArrowGeos(geos, m, 0, 1);
     } else {
-      group.add(createCurvedRoadArrow(m, 0, -1, arrowMat));
+      pushCurvedRoadArrowGeos(geos, m, 0, -1);
+    }
+  }
+  if (geos.length > 0) {
+    const merged = mergeGeometries(geos, false);
+    geos.forEach(g => g.dispose());
+    if (merged) {
+      group.add(new THREE.Mesh(merged, arrowMat));
     }
   }
   return group;
 }
 
-function createCurvedRoadArrow(
+function pushCurvedRoadArrowGeos(
+  out: THREE.BufferGeometry[],
   distM: number,
   lateralZ: number,
-  dir: 1 | -1,
-  mat: THREE.Material
-): THREE.Group {
+  dir: 1 | -1
+): void {
   const f = sampleCorridorFrame(distM, lateralZ);
-  const g = new THREE.Group();
-  const shaft = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.02, 0.24), mat);
-  shaft.position.x = -0.5;
-  g.add(shaft);
+  const xform = new THREE.Object3D();
+  xform.position.set(f.x, f.y + 0.082, f.z);
+  xform.rotation.order = 'YXZ';
+  xform.rotation.y = dir === 1 ? f.yaw : f.yaw + Math.PI;
+  xform.rotation.z = dir === 1 ? f.pitch : -f.pitch;
+  xform.updateMatrix();
+
+  const shaftGeo = new THREE.BoxGeometry(1.75, 0.02, 0.24);
+  shaftGeo.translate(-0.5, 0, 0);
+  shaftGeo.applyMatrix4(xform.matrix);
+  out.push(shaftGeo);
 
   const headShape = new THREE.Shape();
   headShape.moveTo(0.45, -0.44);
@@ -1373,15 +1440,9 @@ function createCurvedRoadArrow(
 
   const headGeo = new THREE.ShapeGeometry(headShape);
   headGeo.rotateX(-Math.PI / 2);
-  const head = new THREE.Mesh(headGeo, mat);
-  head.position.y = 0.012;
-  g.add(head);
-
-  g.position.set(f.x, f.y + 0.082, f.z);
-  g.rotation.order = 'YXZ';
-  g.rotation.y = dir === 1 ? f.yaw : f.yaw + Math.PI;
-  g.rotation.z = dir === 1 ? f.pitch : -f.pitch;
-  return g;
+  headGeo.translate(0, 0.012, 0);
+  headGeo.applyMatrix4(xform.matrix);
+  out.push(headGeo);
 }
 
 function createPoleSign(
