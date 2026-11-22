@@ -158,6 +158,8 @@ export class TrafficScene3D {
   private pointerScreen = { x: 0, y: 0, active: false };
   private pointerDownPos = { x: 0, y: 0, active: false };
   private pendingClickPick = false;
+  private lastHoverCheckSec = -1;
+  private cachedHoverVehicleId: number | null = null;
 
   private elapsedRealSec = 0;
   private elapsedSimSec = 0;
@@ -527,7 +529,7 @@ export class TrafficScene3D {
     // 4. Handle click-to-follow on any 3D vehicle
     if (this.pendingClickPick) {
       this.pendingClickPick = false;
-      const picked = this.pickHoveredVehicle(view);
+      const picked = this.pickHoveredVehicle(view, true);
       if (picked) {
         this.enterVehiclePov(view, picked.agent.id);
       }
@@ -779,27 +781,115 @@ export class TrafficScene3D {
     for (const b of this.pedestrianMeshes.values()) b.group.visible = true;
   }
 
-  private pickHoveredVehicle(view: EngineStateView): VehicleHoverInfo | null {
-    if (!this.pointerScreen.active) return null;
+  /**
+   * Fast O(N) mathematical Ray-vs-Oriented-Bounding-Box (OBB) vehicle picker:
+   * Avoids recursive Three.js triangle raycasting across ~1,800 vehicle sub-meshes & torus wheels.
+   * Throttled to 15 Hz during passive hover and executed immediately on click.
+   */
+  private pickHoveredVehicle(view: EngineStateView, forceImmediate = false): VehicleHoverInfo | null {
+    if (!this.pointerScreen.active) {
+      this.cachedHoverVehicleId = null;
+      return null;
+    }
+
+    if (!forceImmediate && this.elapsedRealSec - this.lastHoverCheckSec < 0.065) {
+      if (this.cachedHoverVehicleId === null) return null;
+      const cached = view.vehicles.find(v => v.id === this.cachedHoverVehicleId);
+      if (!cached) return null;
+      return {
+        agent: cached,
+        screenX: this.pointerScreen.x,
+        screenY: this.pointerScreen.y
+      };
+    }
+
+    this.lastHoverCheckSec = this.elapsedRealSec;
     this.raycaster.setFromCamera(this.pointerNDC, this.camera);
-    const meshes: THREE.Object3D[] = [];
-    for (const bundle of this.vehicleMeshes.values()) {
-      if (bundle.group.visible) meshes.push(bundle.group);
-    }
-    const hits = this.raycaster.intersectObjects(meshes, true);
-    if (hits.length === 0) return null;
+    const ro = this.raycaster.ray.origin;
+    const rd = this.raycaster.ray.direction;
 
-    let obj: THREE.Object3D | null = hits[0].object;
-    while (obj && obj.userData.vehicleId === undefined) {
-      obj = obj.parent;
-    }
-    if (!obj || typeof obj.userData.vehicleId !== 'number') return null;
+    let bestAgent: VehicleAgent | null = null;
+    let bestT = Infinity;
 
-    const agent = view.vehicles.find(v => v.id === obj!.userData.vehicleId);
-    if (!agent) return null;
+    for (const v of view.vehicles) {
+      const bundle = this.vehicleMeshes.get(v.id);
+      if (!bundle || !bundle.group.visible) continue;
+
+      const pos = bundle.group.position;
+      const yaw = bundle.group.rotation.y;
+      const cosY = Math.cos(-yaw);
+      const sinY = Math.sin(-yaw);
+
+      // Transform ray origin & direction into vehicle's local horizontal frame
+      const dx = ro.x - pos.x;
+      const dy = ro.y - pos.y;
+      const dz = ro.z - pos.z;
+
+      const lox = dx * cosY - dz * sinY;
+      const loy = dy;
+      const loz = dx * sinY + dz * cosY;
+
+      const ldx = rd.x * cosY - rd.z * sinY;
+      const ldy = rd.y;
+      const ldz = rd.x * sinY + rd.z * cosY;
+
+      // Slightly generous hit box around vehicle so motorcycles are easy to hover & click
+      const hx = v.lengthM * 0.55 + 0.15;
+      const hyMin = -0.1;
+      const hyMax = v.heightM + 0.25;
+      const hz = Math.max(0.46, v.widthM * 0.56);
+
+      let tMin = 0.2;
+      let tMax = bestT;
+
+      // X slab
+      if (Math.abs(ldx) < 1e-6) {
+        if (lox < -hx || lox > hx) continue;
+      } else {
+        const inv = 1 / ldx;
+        let t1 = (-hx - lox) * inv;
+        let t2 = (hx - lox) * inv;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        if (t1 > tMin) tMin = t1;
+        if (t2 < tMax) tMax = t2;
+        if (tMin > tMax) continue;
+      }
+
+      // Y slab
+      if (Math.abs(ldy) < 1e-6) {
+        if (loy < hyMin || loy > hyMax) continue;
+      } else {
+        const inv = 1 / ldy;
+        let t1 = (hyMin - loy) * inv;
+        let t2 = (hyMax - loy) * inv;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        if (t1 > tMin) tMin = t1;
+        if (t2 < tMax) tMax = t2;
+        if (tMin > tMax) continue;
+      }
+
+      // Z slab
+      if (Math.abs(ldz) < 1e-6) {
+        if (loz < -hz || loz > hz) continue;
+      } else {
+        const inv = 1 / ldz;
+        let t1 = (-hz - loz) * inv;
+        let t2 = (hz - loz) * inv;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        if (t1 > tMin) tMin = t1;
+        if (t2 < tMax) tMax = t2;
+        if (tMin > tMax) continue;
+      }
+
+      bestT = tMin;
+      bestAgent = v;
+    }
+
+    this.cachedHoverVehicleId = bestAgent ? bestAgent.id : null;
+    if (!bestAgent) return null;
 
     return {
-      agent,
+      agent: bestAgent,
       screenX: this.pointerScreen.x,
       screenY: this.pointerScreen.y
     };

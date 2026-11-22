@@ -60,7 +60,85 @@ const privatePlateMat = new THREE.MeshBasicMaterial({ map: createBandungPlateTex
 const publicPlateMat = new THREE.MeshBasicMaterial({ map: createBandungPlateTexture('D 1942 AA', true) });
 const motorPlateMat = new THREE.MeshBasicMaterial({ map: createBandungPlateTexture('D 4821 ZB', false) });
 
-const SHARED_GEOMETRIES = new Set<THREE.BufferGeometry>([tireTorusGeo, rimDiscGeo, spokeGeo]);
+// Pre-triangulated shared scooter geometries (eliminates per-spawn ExtrudeGeometry CPU work & VBO churn)
+const scooterForkGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.62, 8);
+const scooterFenderGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.14, 12, 1, true, -0.9, 1.5);
+const scooterApronGeo = (() => {
+  const s = new THREE.Shape();
+  s.moveTo(0.24, 0.26);
+  s.lineTo(0.42, 0.26);
+  s.quadraticCurveTo(0.64, 0.56, 0.48, 0.96);
+  s.lineTo(0.32, 0.96);
+  s.quadraticCurveTo(0.38, 0.56, 0.24, 0.26);
+  s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, {
+    depth: 0.36,
+    bevelEnabled: true,
+    bevelThickness: 0.04,
+    bevelSize: 0.03,
+    bevelSegments: 2
+  });
+  g.translate(0, 0, -0.18);
+  return g;
+})();
+const scooterCowlGeo = new THREE.BoxGeometry(0.22, 0.18, 0.38);
+const scooterHlGeo = new THREE.BoxGeometry(0.06, 0.13, 0.22);
+const scooterVisorGeo = new THREE.BoxGeometry(0.04, 0.14, 0.24);
+const scooterBarGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.68, 8);
+const scooterStalkGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.18, 6);
+const scooterMirGeo = new THREE.BoxGeometry(0.04, 0.07, 0.11);
+const scooterDeckGeo = new THREE.BoxGeometry(0.62, 0.12, 0.38);
+const scooterRearGeo = (() => {
+  const s = new THREE.Shape();
+  s.moveTo(-0.18, 0.34);
+  s.lineTo(0.06, 0.34);
+  s.lineTo(0.02, 0.72);
+  s.quadraticCurveTo(-0.45, 0.78, -0.84, 0.74);
+  s.quadraticCurveTo(-0.74, 0.46, -0.18, 0.34);
+  s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, {
+    depth: 0.34,
+    bevelEnabled: true,
+    bevelThickness: 0.04,
+    bevelSize: 0.03,
+    bevelSegments: 2
+  });
+  g.translate(0, 0, -0.17);
+  return g;
+})();
+const scooterSeatFrontGeo = new THREE.BoxGeometry(0.42, 0.12, 0.32);
+const scooterSeatRearGeo = new THREE.BoxGeometry(0.36, 0.14, 0.3);
+const scooterGrabRailGeo = new THREE.TorusGeometry(0.15, 0.022, 6, 12, Math.PI);
+const scooterExhaustGeo = new THREE.CylinderGeometry(0.055, 0.042, 0.56, 8);
+const scooterHeatShieldGeo = new THREE.BoxGeometry(0.34, 0.07, 0.03);
+const scooterBrakeGeo = new THREE.BoxGeometry(0.06, 0.12, 0.18);
+const scooterHazardGeo = new THREE.SphereGeometry(0.045, 6, 6);
+const scooterPlateGeo = new THREE.BoxGeometry(0.02, 0.11, 0.22);
+
+const SHARED_GEOMETRIES = new Set<THREE.BufferGeometry>([
+  tireTorusGeo,
+  rimDiscGeo,
+  spokeGeo,
+  scooterForkGeo,
+  scooterFenderGeo,
+  scooterApronGeo,
+  scooterCowlGeo,
+  scooterHlGeo,
+  scooterVisorGeo,
+  scooterBarGeo,
+  scooterStalkGeo,
+  scooterMirGeo,
+  scooterDeckGeo,
+  scooterRearGeo,
+  scooterSeatFrontGeo,
+  scooterSeatRearGeo,
+  scooterGrabRailGeo,
+  scooterExhaustGeo,
+  scooterHeatShieldGeo,
+  scooterBrakeGeo,
+  scooterHazardGeo,
+  scooterPlateGeo
+]);
 const SHARED_MATERIALS = new Set<THREE.Material>([
   tireMat,
   rimMat,
@@ -166,128 +244,95 @@ export function buildDetailedIndonesianScooter(
 
   // Telescopic chrome front fork tubes + front fender hugging front wheel
   for (const fz of [-0.09, 0.09]) {
-    const fork = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.62, 8), chromeMat);
+    const fork = new THREE.Mesh(scooterForkGeo, chromeMat);
     fork.position.set(0.54, 0.52, fz);
     fork.rotation.z = 0.34;
     group.add(fork);
   }
-  const frontFender = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.28, 0.28, 0.14, 12, 1, true, -0.9, 1.5),
-    bodyMat
-  );
+  const frontFender = new THREE.Mesh(scooterFenderGeo, bodyMat);
   frontFender.rotation.x = Math.PI / 2;
   frontFender.position.set(0.64, 0.26, 0);
   group.add(frontFender);
 
-  // Curved front leg-shield / apron (ExtrudeGeometry)
-  const apronShape = new THREE.Shape();
-  apronShape.moveTo(0.24, 0.26);
-  apronShape.lineTo(0.42, 0.26);
-  apronShape.quadraticCurveTo(0.64, 0.56, 0.48, 0.96);
-  apronShape.lineTo(0.32, 0.96);
-  apronShape.quadraticCurveTo(0.38, 0.56, 0.24, 0.26);
-  apronShape.closePath();
-  const apronGeo = new THREE.ExtrudeGeometry(apronShape, {
-    depth: 0.36,
-    bevelEnabled: true,
-    bevelThickness: 0.04,
-    bevelSize: 0.03,
-    bevelSegments: 2
-  });
-  apronGeo.translate(0, 0, -0.18);
-  const apron = new THREE.Mesh(apronGeo, bodyMat);
+  // Curved front leg-shield / apron (pooled ExtrudeGeometry)
+  const apron = new THREE.Mesh(scooterApronGeo, bodyMat);
   apron.castShadow = true;
   group.add(apron);
 
   // Sculpted handlebar cowl + clear visor + headlight + handlebar grips + rearview mirrors
-  const cowl = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.38), bodyMat);
+  const cowl = new THREE.Mesh(scooterCowlGeo, bodyMat);
   cowl.position.set(0.42, 1.04, 0);
   cowl.rotation.z = -0.2;
   cowl.castShadow = true;
   group.add(cowl);
 
-  const hl = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.13, 0.22), headlightMat);
+  const hl = new THREE.Mesh(scooterHlGeo, headlightMat);
   hl.position.set(0.53, 1.03, 0);
   group.add(hl);
 
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.14, 0.24), glassMat);
+  const visor = new THREE.Mesh(scooterVisorGeo, glassMat);
   visor.position.set(0.46, 1.15, 0);
   visor.rotation.z = 0.35;
   group.add(visor);
 
-  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.68, 8), bumperMat);
+  const bar = new THREE.Mesh(scooterBarGeo, bumperMat);
   bar.rotation.x = Math.PI / 2;
   bar.position.set(0.38, 1.04, 0);
   group.add(bar);
 
   for (const mz of [-0.26, 0.26]) {
-    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.18, 6), bumperMat);
+    const stalk = new THREE.Mesh(scooterStalkGeo, bumperMat);
     stalk.position.set(0.39, 1.16, mz);
     stalk.rotation.x = mz > 0 ? 0.25 : -0.25;
     group.add(stalk);
-    const mir = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 0.11), bumperMat);
+    const mir = new THREE.Mesh(scooterMirGeo, bumperMat);
     mir.position.set(0.39, 1.24, mz * 1.15);
     group.add(mir);
   }
 
   // Step-through deck + underbody engine cover
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.12, 0.38), bumperMat);
+  const deck = new THREE.Mesh(scooterDeckGeo, bumperMat);
   deck.position.set(0.02, 0.32, 0);
   group.add(deck);
 
-  // Curved tapered rear cowling (ExtrudeGeometry)
-  const rearShape = new THREE.Shape();
-  rearShape.moveTo(-0.18, 0.34);
-  rearShape.lineTo(0.06, 0.34);
-  rearShape.lineTo(0.02, 0.72);
-  rearShape.quadraticCurveTo(-0.45, 0.78, -0.84, 0.74);
-  rearShape.quadraticCurveTo(-0.74, 0.46, -0.18, 0.34);
-  rearShape.closePath();
-  const rearGeo = new THREE.ExtrudeGeometry(rearShape, {
-    depth: 0.34,
-    bevelEnabled: true,
-    bevelThickness: 0.04,
-    bevelSize: 0.03,
-    bevelSegments: 2
-  });
-  rearGeo.translate(0, 0, -0.17);
-  const rearBody = new THREE.Mesh(rearGeo, bodyMat);
+  // Curved tapered rear cowling (pooled ExtrudeGeometry)
+  const rearBody = new THREE.Mesh(scooterRearGeo, bodyMat);
   rearBody.castShadow = true;
   group.add(rearBody);
 
   // Contoured stepped leather seat + chrome rear grab rail (behel)
-  const seatFront = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.32), leatherMat);
+  const seatFront = new THREE.Mesh(scooterSeatFrontGeo, leatherMat);
   seatFront.position.set(-0.16, 0.78, 0);
   group.add(seatFront);
-  const seatRear = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.14, 0.3), leatherMat);
+  const seatRear = new THREE.Mesh(scooterSeatRearGeo, leatherMat);
   seatRear.position.set(-0.52, 0.82, 0);
   group.add(seatRear);
 
-  const grabRail = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.022, 6, 12, Math.PI), chromeMat);
+  const grabRail = new THREE.Mesh(scooterGrabRailGeo, chromeMat);
   grabRail.rotation.x = Math.PI / 2;
   grabRail.rotation.z = Math.PI / 2;
   grabRail.position.set(-0.72, 0.84, 0);
   group.add(grabRail);
 
   // Angled exhaust muffler pipe on right side (+Z)
-  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.042, 0.56, 8), bumperMat);
+  const exhaust = new THREE.Mesh(scooterExhaustGeo, bumperMat);
   exhaust.rotation.z = Math.PI / 2 - 0.18;
   exhaust.position.set(-0.48, 0.34, 0.21);
   group.add(exhaust);
-  const heatShield = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.03), chromeMat);
+  const heatShield = new THREE.Mesh(scooterHeatShieldGeo, chromeMat);
   heatShield.position.set(-0.48, 0.35, 0.26);
   group.add(heatShield);
 
   // Rear tail light, blinkers & Bandung D license plate
-  const bl = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.18), brakeMat);
+  const bl = new THREE.Mesh(scooterBrakeGeo, brakeMat);
   bl.position.set(-0.85, 0.72, 0);
   group.add(bl);
 
-  const hz = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), hazardMat);
+  const hz = new THREE.Mesh(scooterHazardGeo, hazardMat);
   hz.position.set(-0.86, 0.64, 0.1);
   group.add(hz);
 
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.11, 0.22), motorPlateMat);
+  const plate = new THREE.Mesh(scooterPlateGeo, motorPlateMat);
   plate.position.set(-0.86, 0.52, 0);
   plate.rotation.z = 0.25;
   group.add(plate);
