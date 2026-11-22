@@ -160,34 +160,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
     worldGroup.add(srMesh);
   }
 
-  // Continuous weathered concrete/paver shoulder apron on both sides
-  const shoulderPavers = loadPaversPbr(1, 1);
-  const shoulderMat = new THREE.MeshStandardMaterial({
-    color: 0xd0ccc2,
-    map: shoulderPavers.map,
-    normalMap: shoulderPavers.normalMap,
-    normalScale: new THREE.Vector2(0.45, 0.45),
-    roughness: 0.9,
-    polygonOffset: true,
-    polygonOffsetFactor: 2,
-    polygonOffsetUnits: 2
-  });
-  for (const shSign of [-1, 1]) {
-    const shGeo = createCorridorRibbonGeometry(
-      -10,
-      visLen + 8,
-      shSign * (CORRIDOR.roadWidthM / 2 + 1.45),
-      2.6,
-      0.012,
-      3.0,
-      3.2
-    );
-    const shMesh = new THREE.Mesh(shGeo, shoulderMat);
-    shMesh.receiveShadow = true;
-    worldGroup.add(shMesh);
-  }
-
-  // Concrete drainage gutters + iron grates hugging both curved road edges
+  // Concrete drainage gutters + iron grates hugging both curved road edges (no sidewalk in Baseline)
   const gutterMat = new THREE.MeshStandardMaterial({ color: 0x8c929c, roughness: 0.88 });
   const grateMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.55, metalness: 0.65 });
   for (const sideSign of [-1, 1]) {

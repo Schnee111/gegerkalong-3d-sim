@@ -499,8 +499,8 @@ export class TrafficScene3D {
         this.scene.add(bundle.group);
       }
       const lateralZ = cfg.hasSidewalk
-        ? -(CORRIDOR.roadWidthM / 2 + CORRIDOR.sidewalkWidthM * 0.5 + 0.3) + p.lateralJitterM * 0.55
-        : -(CORRIDOR.roadWidthM / 2 + 0.54) + p.lateralJitterM * 0.22;
+        ? -(CORRIDOR.roadWidthM / 2 + CORRIDOR.sidewalkWidthM * 0.5 + 0.24) + p.lateralJitterM * 0.35
+        : -(CORRIDOR.roadWidthM / 2 + 0.08) + p.lateralJitterM * 0.1;
       const frame = sampleCorridorFrame(p.xM, lateralZ);
       const walkCycle = this.elapsedSimSec * 6.8 + bundle.phaseOffset;
       const walkBob = Math.abs(Math.sin(walkCycle)) * 0.045;
@@ -640,10 +640,10 @@ export class TrafficScene3D {
       } else {
         this.followedPedId = ped.id;
         const cfg = SCENARIOS[view.scenario];
-        // Keep camera cleanly centered on the raised sidewalk (or road shoulder) with clear sightline away from facades
+        // Keep camera cleanly centered on the raised sidewalk (Skenario 1/2) or hugging the narrow road edge (Baseline)
         const lateralZ = cfg.hasSidewalk
-          ? -(CORRIDOR.roadWidthM / 2 + CORRIDOR.sidewalkWidthM * 0.48) + ped.lateralJitterM * 0.22
-          : -(CORRIDOR.roadWidthM / 2 + 0.48) + ped.lateralJitterM * 0.12;
+          ? -(CORRIDOR.roadWidthM / 2 + CORRIDOR.sidewalkWidthM * 0.5 + 0.24) + ped.lateralJitterM * 0.18
+          : -(CORRIDOR.roadWidthM / 2 + 0.08) + ped.lateralJitterM * 0.08;
         const frame = sampleCorridorFrame(ped.xM, lateralZ);
         const lookFrame = sampleCorridorFrame(
           Math.max(0, Math.min(CORRIDOR.lengthM, ped.xM + ped.dir * 18)),
