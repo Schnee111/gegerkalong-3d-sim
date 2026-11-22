@@ -7,6 +7,7 @@ export interface VehicleMeshBundle {
   wheels: THREE.Object3D[];
   brakeMat: THREE.MeshStandardMaterial;
   hazardMat: THREE.MeshStandardMaterial;
+  dispose(): void;
 }
 
 export interface PedestrianMeshBundle {
@@ -16,6 +17,7 @@ export interface PedestrianMeshBundle {
   leftArmPivot: THREE.Group;
   rightArmPivot: THREE.Group;
   phaseOffset: number;
+  dispose(): void;
 }
 
 // Shared high-detail wheel & trim materials
@@ -57,6 +59,51 @@ const contactShadowMat = new THREE.MeshBasicMaterial({
 const privatePlateMat = new THREE.MeshBasicMaterial({ map: createBandungPlateTexture('D 1824 UY', false) });
 const publicPlateMat = new THREE.MeshBasicMaterial({ map: createBandungPlateTexture('D 1942 AA', true) });
 const motorPlateMat = new THREE.MeshBasicMaterial({ map: createBandungPlateTexture('D 4821 ZB', false) });
+
+const SHARED_GEOMETRIES = new Set<THREE.BufferGeometry>([tireTorusGeo, rimDiscGeo, spokeGeo]);
+const SHARED_MATERIALS = new Set<THREE.Material>([
+  tireMat,
+  rimMat,
+  bumperMat,
+  chromeMat,
+  interiorMat,
+  seatMat,
+  leatherMat,
+  glassMat,
+  headlightMat,
+  contactShadowMat,
+  privatePlateMat,
+  publicPlateMat,
+  motorPlateMat
+]);
+
+function disposeOwnedResources(root: THREE.Object3D, extraMaterials: THREE.Material[] = []): void {
+  const disposedGeos = new Set<THREE.BufferGeometry>();
+  const disposedMats = new Set<THREE.Material>();
+
+  root.traverse(obj => {
+    if (obj instanceof THREE.Mesh) {
+      if (obj.geometry && !SHARED_GEOMETRIES.has(obj.geometry) && !disposedGeos.has(obj.geometry)) {
+        obj.geometry.dispose();
+        disposedGeos.add(obj.geometry);
+      }
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const m of mats) {
+        if (m && !SHARED_MATERIALS.has(m) && !disposedMats.has(m)) {
+          m.dispose();
+          disposedMats.add(m);
+        }
+      }
+    }
+  });
+
+  for (const m of extraMaterials) {
+    if (!SHARED_MATERIALS.has(m) && !disposedMats.has(m)) {
+      m.dispose();
+      disposedMats.add(m);
+    }
+  }
+}
 
 function createDetailedWheel(scale = 1.0): THREE.Group {
   const w = new THREE.Group();
@@ -364,6 +411,7 @@ export function createVehicleMesh(agent: VehicleAgent): VehicleMeshBundle {
       hazardMat
     );
     group.add(scooter);
+    bodyMat.dispose();
   } else if (agent.kind === 'Boks Muat') {
     buildBoxTruck(group, wheels, L, W, H, bodyMat, brakeMat, hazardMat);
   } else if (agent.kind === 'Angkot') {
@@ -376,7 +424,13 @@ export function createVehicleMesh(agent: VehicleAgent): VehicleMeshBundle {
     obj.userData.vehicleId = agent.id;
   });
 
-  return { group, wheels, brakeMat, hazardMat };
+  return {
+    group,
+    wheels,
+    brakeMat,
+    hazardMat,
+    dispose: () => disposeOwnedResources(group, [brakeMat, hazardMat])
+  };
 }
 
 function buildSculptedMPV(
@@ -835,6 +889,7 @@ export function createPedestrianMesh(ped: PedestrianAgent): PedestrianMeshBundle
     rightLegPivot,
     leftArmPivot,
     rightArmPivot,
-    phaseOffset: ped.id * 1.7
+    phaseOffset: ped.id * 1.7,
+    dispose: () => disposeOwnedResources(g)
   };
 }

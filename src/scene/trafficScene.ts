@@ -126,6 +126,7 @@ export class TrafficScene3D {
   private pointerNDC = new THREE.Vector2(-99, -99);
   private pointerScreen = { x: 0, y: 0, active: false };
   private elapsedRealSec = 0;
+  private elapsedSimSec = 0;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -152,7 +153,7 @@ export class TrafficScene3D {
     this.scene.fog = new THREE.Fog(0xe6edf4, 145, 340);
 
     // Telephoto Architectural Isometric Lens (26 deg FOV removes wide-angle distortion!)
-    this.camera = new THREE.PerspectiveCamera(26, w / h, 1.0, 1100);
+    this.camera = new THREE.PerspectiveCamera(26, w / h, 1.0, 1600);
     this.camera.position.set(...CAMERA_PRESETS.isometric.position);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -160,7 +161,7 @@ export class TrafficScene3D {
     this.controls.dampingFactor = 0.08;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.14; // Keeps camera above ugly flat horizon plane
     this.controls.minDistance = 24;
-    this.controls.maxDistance = 420;
+    this.controls.maxDistance = 720;
     this.controls.target.set(...CAMERA_PRESETS.isometric.target);
     this.controls.addEventListener('start', () => {
       this.desiredCamPos = null;
@@ -254,8 +255,22 @@ export class TrafficScene3D {
     this.tiltShiftPass.uniforms.uResolution.value.set(w, h);
   }
 
+  /**
+   * Returns clockwise degrees from screen-Up pointing toward real geographic North (-X / Simpang Girang).
+   */
+  public getNorthCompassDeg(): number {
+    const fx = this.controls.target.x - this.camera.position.x;
+    const fz = this.controls.target.z - this.camera.position.z;
+    const len = Math.hypot(fx, fz);
+    if (len < 1e-4) return -90;
+    const northUp = -fx / len;
+    const northRight = fz / len;
+    return (Math.atan2(northRight, northUp) * 180) / Math.PI;
+  }
+
   public syncAndRender(view: EngineStateView, realDt: number, simDt: number): VehicleHoverInfo | null {
     this.elapsedRealSec += realDt;
+    this.elapsedSimSec += simDt;
     this.corridor.updateForScenario(view.scenario, view.oneWayDir);
 
     // Dynamically adapt fog & tilt-shift blur to camera altitude so high top-down / Denah views are 100% crisp!
@@ -312,6 +327,7 @@ export class TrafficScene3D {
     for (const [id, bundle] of this.vehicleMeshes.entries()) {
       if (!activeIds.has(id)) {
         this.scene.remove(bundle.group);
+        bundle.dispose();
         this.vehicleMeshes.delete(id);
       }
     }
@@ -325,13 +341,13 @@ export class TrafficScene3D {
         this.pedestrianMeshes.set(p.id, bundle);
         this.scene.add(bundle.group);
       }
-      // In Baseline (no sidewalk), pedestrians walk along the outer gutter/shoulder (-2.42 m),
-      // close enough to feel tight on the narrow road but 100% clear of vehicle bodies (max sweep -2.1 m)!
+      // In Baseline (no sidewalk), pedestrians walk along the outer gutter/shoulder (-2.44 m),
+      // close enough to feel tight on the narrow road but clear of vehicle bodies
       const lateralZ = cfg.hasSidewalk
         ? -(CORRIDOR.roadWidthM / 2 + CORRIDOR.sidewalkWidthM * 0.5 + 0.3) + p.lateralJitterM * 0.55
         : -(CORRIDOR.roadWidthM / 2 + 0.54) + p.lateralJitterM * 0.22;
       const frame = sampleCorridorFrame(p.xM, lateralZ);
-      const walkCycle = this.elapsedRealSec * 6.8 + bundle.phaseOffset;
+      const walkCycle = this.elapsedSimSec * 6.8 + bundle.phaseOffset;
       const walkBob = Math.abs(Math.sin(walkCycle)) * 0.045;
       const yLift = (cfg.hasSidewalk ? 0.28 : 0.07) + walkBob;
 
@@ -377,7 +393,7 @@ export class TrafficScene3D {
     }
     if (!obj || typeof obj.userData.vehicleId !== 'number') return null;
 
-    const agent = view.vehicles.find((v) => v.id === obj!.userData.vehicleId);
+    const agent = view.vehicles.find(v => v.id === obj!.userData.vehicleId);
     if (!agent) return null;
 
     return {
@@ -401,6 +417,19 @@ export class TrafficScene3D {
   public dispose(): void {
     this.renderer.domElement.removeEventListener('pointermove', this.onPointerMove);
     this.renderer.domElement.removeEventListener('pointerleave', this.onPointerLeave);
+    for (const bundle of this.vehicleMeshes.values()) {
+      this.scene.remove(bundle.group);
+      bundle.dispose();
+    }
+    this.vehicleMeshes.clear();
+    for (const bundle of this.pedestrianMeshes.values()) {
+      this.scene.remove(bundle.group);
+      bundle.dispose();
+    }
+    this.pedestrianMeshes.clear();
+    this.skyMorning.dispose();
+    this.skyAfternoon.dispose();
+    this.composer.dispose();
     this.controls.dispose();
     this.renderer.dispose();
   }
