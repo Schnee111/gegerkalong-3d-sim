@@ -178,16 +178,16 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
   foundation.position.set(0, -0.7, 0);
   g.add(foundation);
 
-  // Compact front step apron (teras depan)
-  const terrace = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.24, 0.72), sharedMaterials.concrete);
-  terrace.position.set(0, 0.12, frontZ + f * 0.36);
+  // Compact front threshold step (stops behind concrete gutter)
+  const terrace = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.22, 0.2), sharedMaterials.concrete);
+  terrace.position.set(0, 0.11, frontZ + f * 0.1);
   terrace.receiveShadow = true;
   g.add(terrace);
 
   // 3D Structural Corner Pilasters (frame the photographic facade with real shadow depth)
   for (const px of [-w / 2 + 0.18, w / 2 - 0.18]) {
-    const pilaster = new THREE.Mesh(new THREE.BoxGeometry(0.36, totalH + 0.05, 0.24), trimMat);
-    pilaster.position.set(px, totalH / 2, frontZ + f * 0.06);
+    const pilaster = new THREE.Mesh(new THREE.BoxGeometry(0.36, totalH + 0.05, 0.18), trimMat);
+    pilaster.position.set(px, totalH / 2, frontZ + f * 0.04);
     pilaster.castShadow = true;
     pilaster.receiveShadow = true;
     g.add(pilaster);
@@ -195,7 +195,7 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
 
   // Horizontal concrete slab drip ledges between floors (cast real sunlight shadow across facade)
   for (let fl = 1; fl <= spec.floors; fl++) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.2, d + 0.34), sharedMaterials.concrete);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, 0.18, d + 0.22), sharedMaterials.concrete);
     band.position.y = fl * floorH;
     band.castShadow = true;
     band.receiveShadow = true;
@@ -218,7 +218,7 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
 
   // Rainwater downspout pipe
   const downspout = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, totalH, 6), sharedMaterials.pipe);
-  downspout.position.set(w / 2 - 0.18, totalH / 2, frontZ + f * 0.16);
+  downspout.position.set(w / 2 - 0.18, totalH / 2, frontZ + f * 0.1);
   g.add(downspout);
 
   // Shopfront Fascia Signboard
@@ -231,7 +231,7 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
   );
   const signW = Math.min(w * 0.86, 9.0);
   const signMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(signW, 0.78, 0.18),
+    new THREE.BoxGeometry(signW, 0.78, 0.14),
     [
       sharedMaterials.steelDark,
       sharedMaterials.steelDark,
@@ -241,77 +241,71 @@ export function createDetailedRuko(spec: RukoSpec): THREE.Group {
       f === -1 ? new THREE.MeshBasicMaterial({ map: signTex }) : sharedMaterials.steelDark
     ]
   );
-  signMesh.position.set(0, floorH - 0.12, frontZ + f * 0.14);
+  signMesh.position.set(0, floorH - 0.12, frontZ + f * 0.1);
   signMesh.castShadow = true;
   g.add(signMesh);
 
-  // Perpendicular projecting blade sign (plang toko menjorok ke jalan)
+  // Compact high-mounted blade sign (stays behind road curb envelope)
   if (spec.hasBladeSign) {
     const blade = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 1.45, 1.05),
+      new THREE.BoxGeometry(0.1, 1.25, 0.46),
       new THREE.MeshBasicMaterial({ map: signTex })
     );
-    blade.position.set(w / 2 - 0.45, floorH + 1.38, frontZ + f * 0.85);
+    blade.position.set(w / 2 - 0.38, floorH + 1.38, frontZ + f * 0.25);
     blade.castShadow = true;
     g.add(blade);
   }
 
-  // 3D Sloped Awning Canopy (skipped on 'warung' facade which already carries a photo awning)
+  // Cantilevered wall-mounted awning canopy (no ground poles that would intrude onto the narrow road)
   if (facadeKind !== 'warung') {
     const awningTex = createStripedAwningTexture(spec.awningHex, '#f8fafc');
     const awning = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 0.92, 0.08, 1.15),
+      new THREE.BoxGeometry(w * 0.9, 0.07, 0.44),
       new THREE.MeshStandardMaterial({ map: awningTex, roughness: 0.72 })
     );
-    awning.position.set(0, floorH - 0.58, frontZ + f * 0.58);
-    awning.rotation.x = f * 0.24;
+    awning.position.set(0, floorH - 0.52, frontZ + f * 0.22);
+    awning.rotation.x = f * 0.2;
     awning.castShadow = true;
     g.add(awning);
-
-    for (const sx of [-w * 0.42, w * 0.42]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, floorH - 0.82, 6), sharedMaterials.railing);
-      post.position.set(sx, (floorH - 0.82) / 2, frontZ + f * 1.04);
-      g.add(post);
-    }
   }
 
-  // Optional 3D wooden warung display showcase / glass vitrine on the front apron
+  // Optional 3D wooden warung display showcase / glass vitrine on deep-setback lots only
   if (spec.hasPorchStall) {
-    const counter = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.95, 0.65), sharedMaterials.wood);
-    counter.position.set(-w * 0.24, 0.72, frontZ + f * 0.48);
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.92, 0.48), sharedMaterials.wood);
+    counter.position.set(-w * 0.24, 0.7, frontZ + f * 0.3);
     counter.castShadow = true;
     g.add(counter);
 
-    const vitrine = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.58, 0.52), sharedMaterials.storeGlass);
-    vitrine.position.set(-w * 0.24, 1.48, frontZ + f * 0.48);
+    const vitrine = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.54, 0.4), sharedMaterials.storeGlass);
+    vitrine.position.set(-w * 0.24, 1.44, frontZ + f * 0.3);
     g.add(vitrine);
   }
 
-  // 3D Cantilevered Upper-Floor Balcony Slab + Railing + AC Condenser (adds real 3D parallax!)
+  // Slim cantilevered upper-floor balcony slab + railing + AC condenser (stays clear of road envelope)
   for (let fl = 1; fl < spec.floors; fl++) {
     const baseY = fl * floorH;
     const balcW = w * 0.52;
     const balcX = w * 0.18;
 
-    const balc = new THREE.Mesh(new THREE.BoxGeometry(balcW, 0.16, 0.62), sharedMaterials.concrete);
-    balc.position.set(balcX, baseY + 0.36, frontZ + f * 0.32);
+    const balc = new THREE.Mesh(new THREE.BoxGeometry(balcW, 0.15, 0.32), sharedMaterials.concrete);
+    balc.position.set(balcX, baseY + 0.36, frontZ + f * 0.16);
     balc.castShadow = true;
     g.add(balc);
 
-    const railTop = new THREE.Mesh(new THREE.BoxGeometry(balcW, 0.055, 0.055), sharedMaterials.railing);
-    railTop.position.set(balcX, baseY + 1.14, frontZ + f * 0.6);
+    const railTop = new THREE.Mesh(new THREE.BoxGeometry(balcW, 0.05, 0.05), sharedMaterials.railing);
+    railTop.position.set(balcX, baseY + 1.12, frontZ + f * 0.3);
     g.add(railTop);
 
     const railPosts = Math.max(4, Math.floor(balcW / 0.95));
     for (let rp = 0; rp <= railPosts; rp++) {
       const rx = balcX - balcW / 2 + (rp / railPosts) * balcW;
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.74, 0.036), sharedMaterials.railing);
-      post.position.set(rx, baseY + 0.77, frontZ + f * 0.6);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.72, 0.034), sharedMaterials.railing);
+      post.position.set(rx, baseY + 0.76, frontZ + f * 0.3);
       g.add(post);
     }
 
-    const ac = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.5, 0.34), sharedMaterials.acUnit);
-    ac.position.set(balcX + balcW * 0.36, baseY + 0.74, frontZ + f * 0.34);
+    const ac = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.48, 0.24), sharedMaterials.acUnit);
+    ac.position.set(balcX + balcW * 0.36, baseY + 0.74, frontZ + f * 0.16);
     ac.castShadow = true;
     g.add(ac);
   }
@@ -411,36 +405,36 @@ export function createDetailedKosBuilding(w: number, d: number, floors = 4): THR
   kosFront.receiveShadow = true;
   g.add(kosFront);
 
-  // Projecting side stairwell tower (breaks boxy silhouette)
-  const stairTower = new THREE.Mesh(new THREE.BoxGeometry(3.2, totalH + 1.8, 4.4), accentWallMat);
-  stairTower.position.set(w / 2 - 1.5, (totalH + 1.8) / 2, d / 2 - 1.2);
+  // Flush side stairwell tower (stays aligned within main building front plane)
+  const stairTower = new THREE.Mesh(new THREE.BoxGeometry(3.2, totalH + 1.8, 3.6), accentWallMat);
+  stairTower.position.set(w / 2 - 1.5, (totalH + 1.8) / 2, d / 2 - 1.72);
   stairTower.castShadow = true;
   g.add(stairTower);
 
-  // 3D Structural bay fins & projecting balcony slabs + railings aligned with the 4 floors
+  // Slim 3D structural bay pilasters & upper-floor balcony slabs + railings (never intrude into gutter/road)
   const bays = Math.max(3, Math.floor((w - 3.2) / 5.5));
   const bayW = (w - 3.2) / bays;
   for (let b = 0; b <= bays; b++) {
     const px = -w / 2 + b * bayW;
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.28, totalH, 0.95), accentWallMat);
-    fin.position.set(px, totalH / 2, d / 2 + 0.42);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.24, totalH, 0.2), accentWallMat);
+    fin.position.set(px, totalH / 2, d / 2 + 0.08);
     fin.castShadow = true;
     g.add(fin);
   }
 
   for (let fl = 1; fl < floors; fl++) {
     const y = fl * floorH;
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(w - 3.0, 0.22, 1.05), sharedMaterials.concrete);
-    slab.position.set(-1.5, y, d / 2 + 0.5);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(w - 3.0, 0.18, 0.34), sharedMaterials.concrete);
+    slab.position.set(-1.5, y, d / 2 + 0.16);
     slab.castShadow = true;
     g.add(slab);
 
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(w - 3.2, 0.07, 0.07), sharedMaterials.railing);
-    rail.position.set(-1.6, y + 0.92, d / 2 + 0.96);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(w - 3.2, 0.06, 0.06), sharedMaterials.railing);
+    rail.position.set(-1.6, y + 0.9, d / 2 + 0.31);
     g.add(rail);
   }
 
-  const parapet = new THREE.Mesh(new THREE.BoxGeometry(w + 0.24, 0.95, d + 0.24), accentWallMat);
+  const parapet = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.95, d + 0.2), accentWallMat);
   parapet.position.y = totalH + 0.48;
   parapet.castShadow = true;
   g.add(parapet);
@@ -453,8 +447,8 @@ export function createDetailedKosBuilding(w: number, d: number, floors = 4): THR
   g.add(tank2);
 
   const signTex = createSignTexture('KAWASAN KOS UPI', 'Gegerkalong Tengah · 4 Lantai', '#1e293b', '#f8fafc', '#38bdf8');
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(9.6, 1.8, 0.2), new THREE.MeshBasicMaterial({ map: signTex }));
-  sign.position.set(-1.5, totalH + 1.55, d / 2 + 0.35);
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(9.2, 1.7, 0.16), new THREE.MeshBasicMaterial({ map: signTex }));
+  sign.position.set(-1.5, totalH + 1.55, d / 2 + 0.12);
   g.add(sign);
 
   return g;

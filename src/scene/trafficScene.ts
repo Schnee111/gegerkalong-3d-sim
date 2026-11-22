@@ -297,6 +297,11 @@ export class TrafficScene3D {
     this.exitPov(false);
     this.tourDistM = clamped;
     this.applyCorridorRailTarget(clamped);
+    if (this.desiredCamPos && this.desiredTarget) {
+      this.camera.position.lerp(this.desiredCamPos, 0.72);
+      this.controls.target.lerp(this.desiredTarget, 0.72);
+      this.controls.update();
+    }
   }
 
   public toggleCorridorTour(): void {
