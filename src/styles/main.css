@@ -210,7 +210,7 @@ input:focus-visible {
   border-radius: 8px;
   padding: 7px 11px;
   box-shadow: 0 3px 12px rgba(24, 24, 27, 0.14);
-  max-width: min(560px, calc(100vw - 410px));
+  max-width: 390px;
 }
 
 .pov-info {

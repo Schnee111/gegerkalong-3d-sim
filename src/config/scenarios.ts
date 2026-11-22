@@ -138,16 +138,16 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     code: '1',
     shortName: 'Drop-Off & Parkir',
     title: 'Skenario 1 (Zona Drop-Off & Parkir Luar Badan Jalan)',
-    subtitle: 'Trotoar Timur aktif penuh, teluk drop-off (186-214 m) & parkir khusus (262-296 m), rambu S coret',
+    subtitle: 'Ruas 3,8 m rapat bangunan (tanpa trotoar), teluk drop-off (186-214 m) & parkir khusus (262-296 m), rambu S coret',
     defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 8, stopDur: 25 },
     twoWay: true,
-    hasSidewalk: true,
+    hasSidewalk: false,
     hasOffstreet: true,
     hasNoStopSign: true,
     effectiveCapacitySmp: 820,
     simpyBenchmark: { wait: 8, maxq: 9, thr: 358 },
     insight:
-      'Kendaraan singgah diarahkan ke teluk drop-off sisi Timur (186-214 m) dan kantong parkir khusus sisi Barat sebelum Pasar (262-296 m). Badan jalan bebas hambatan samping dari Simpang Girang hingga Simpang Hilir.'
+      'Karena bangunan kiri-kanan menempel langsung ke tepi jalan (tidak ada ruang pelebaran maupun trotoar), kendaraan singgah diarahkan ke teluk drop-off Timur (186-214 m) dan kantong parkir Barat (262-296 m) agar badan jalan bebas hambatan samping.'
   },
   sk2: {
     key: 'sk2',
@@ -157,13 +157,13 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     subtitle: 'Kombinasi Skenario 1 + satu arah Pagi biru (Girang → Hilir) / Sore oranye (Hilir → Girang)',
     defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 4, stopDur: 20 },
     twoWay: false,
-    hasSidewalk: true,
+    hasSidewalk: false,
     hasOffstreet: true,
     hasNoStopSign: true,
     effectiveCapacitySmp: 1120,
     simpyBenchmark: { wait: 3, maxq: 6, thr: 361 },
     insight:
-      'Seluruh lebar efektif 3,8 m dari Simpang Girang hingga Simpang Hilir difokuskan untuk satu arah arus dominan jam sibuk. Konflik berpapasan hilang sepenuhnya sehingga kapasitas keluar mencapai titik optimal.'
+      'Seluruh lebar efektif 3,8 m yang diapit langsung bangunan kiri-kanan difokuskan untuk satu arah arus dominan jam sibuk tanpa parkir badan jalan. Konflik berpapasan hilang sepenuhnya sehingga kapasitas keluar optimal tanpa perlu pelebaran jalan.'
   }
 };
 

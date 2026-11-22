@@ -670,9 +670,11 @@ export class TrafficScene3D {
 
         corridorDistM = Math.max(0, Math.min(CORRIDOR.lengthM, ped.xM));
         activeLabel = `POV Pejalan Kaki (${Math.round(corridorDistM)} m)`;
-        activeDetail = cfg.hasSidewalk
-          ? 'Berjalan aman di trotoar sisi Timur (terlindung bollard)'
-          : 'Berjalan di bahu aspal sempit tanpa trotoar (rawan konflik)';
+        activeDetail = !cfg.hasOffstreet
+          ? 'Berjalan di tepi aspal sempit tanpa trotoar (terdesak parkir liar & arus 2 arah)'
+          : cfg.twoWay
+          ? 'Tepi jalan bebas parkir liar (hambatan samping dipindah ke zona drop-off & parkir)'
+          : 'Arus satu arah & bebas parkir liar — konflik pejalan kaki minimal di ruas sempit';
       }
     } else if (this.cameraMode === 'tour') {
       this.tourDistM += TOUR_SPEED_MS * realDt;
