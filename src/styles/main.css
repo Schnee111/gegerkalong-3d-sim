@@ -551,12 +551,107 @@ input:focus-visible {
 .controls-hint {
   font-size: 10px;
   color: var(--ink-muted);
+  margin-top: 6px;
+}
+
+.compass-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.compass-arrow {
+  display: inline-block;
+  color: var(--maroon);
+  font-weight: 800;
+  line-height: 1;
+  transition: transform 0.08s linear;
+}
+
+.dir-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.dir-dot.pagi {
+  background: #2563eb;
+}
+
+.dir-dot.sore {
+  background: #ea580c;
+}
+
+.preset-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.preset-pill {
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.preset-pill:hover {
+  border-color: #a1a1aa;
+}
+
+.preset-pill.is-active {
+  background: var(--maroon);
+  border-color: var(--maroon);
+  color: #ffffff;
+}
+
+.slider-head output small {
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+.source-list {
+  margin: 0;
+  padding-left: 15px;
+  font-size: 10.5px;
+  line-height: 1.48;
+  color: var(--ink-muted);
+}
+
+.source-list li {
+  margin-bottom: 4px;
+}
+
+.source-list li:last-child {
+  margin-bottom: 0;
+}
+
+.source-list strong {
+  color: var(--ink);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .analysis-drawer,
   .tool-btn,
-  .scenario-tab {
+  .scenario-tab,
+  .compass-arrow,
+  .preset-pill {
     transition: none;
   }
 }

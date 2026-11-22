@@ -23,22 +23,32 @@ function bootstrap(): void {
   let speed = 1;
   let snapshots: SnapshotRecord[] = [];
   let nextSnapId = 1;
-  let lastHistoryLen = -1;
+  let lastHistoryVersion = -1;
 
   const hud = new HudController({
     onScenarioChange: key => {
       engine.setScenario(key);
       const view = engine.getStateView();
-      hud.syncScenarioSelection(view.scenario, view.oneWayDir);
+      hud.syncScenarioSelection(view);
       charts.updateLive(view.history);
-      lastHistoryLen = view.history.length;
+      lastHistoryVersion = view.historyVersion;
+    },
+    onVolumePresetChange: preset => {
+      engine.setVolumePreset(preset);
+      const view = engine.getStateView();
+      hud.syncScenarioSelection(view);
+      charts.updateLive(view.history);
+      lastHistoryVersion = view.historyVersion;
     },
     onOneWayDirChange: dir => {
       engine.setOneWayDirection(dir);
+      const lightMode = dir === 1 ? 'morning' : 'afternoon';
+      scene3d.setLightingMode(lightMode);
+      hud.syncLightingSelection(lightMode);
       const view = engine.getStateView();
-      hud.syncScenarioSelection(view.scenario, view.oneWayDir);
+      hud.syncScenarioSelection(view);
       charts.updateLive(view.history);
-      lastHistoryLen = view.history.length;
+      lastHistoryVersion = view.historyVersion;
     },
     onCameraPreset: preset => {
       scene3d.setCameraPreset(preset);
@@ -54,20 +64,13 @@ function bootstrap(): void {
       engine.reset();
       const view = engine.getStateView();
       charts.updateLive(view.history);
-      lastHistoryLen = view.history.length;
+      lastHistoryVersion = view.historyVersion;
     },
     onSpeedChange: nextSpeed => {
       speed = nextSpeed;
     },
     onParamsChange: partial => {
       engine.updateParams(partial);
-    },
-    onPresetReset: () => {
-      const current = engine.getStateView().scenario;
-      engine.setScenario(current);
-      const view = engine.getStateView();
-      hud.syncScenarioSelection(view.scenario, view.oneWayDir);
-      charts.updateLive(view.history);
     },
     onBenchMetricChange: metric => {
       charts.setBenchmarkMetric(metric);
@@ -96,16 +99,19 @@ function bootstrap(): void {
 
   // Initial sync
   const initialView = engine.getStateView();
-  hud.syncScenarioSelection(initialView.scenario, initialView.oneWayDir);
+  hud.syncScenarioSelection(initialView);
   hud.syncState(initialView);
+  hud.syncCompass(scene3d.getNorthCompassDeg());
   hud.renderSnapshots(snapshots);
   charts.updateLive(initialView.history);
+  lastHistoryVersion = initialView.historyVersion;
 
   window.addEventListener('resize', () => scene3d.resize());
+  window.addEventListener('beforeunload', () => scene3d.dispose());
 
   let lastNow = performance.now();
   const frame = (now: number): void => {
-    const realDt = Math.min(0.05, (now - lastNow) / 1000);
+    const realDt = Math.max(0, Math.min(0.05, (now - lastNow) / 1000));
     lastNow = now;
 
     if (running) {
@@ -120,11 +126,13 @@ function bootstrap(): void {
     const totalSimDt = running ? realDt * speed : 0;
     const hoverInfo = scene3d.syncAndRender(view, realDt, totalSimDt);
     hud.syncState(view);
+    hud.syncCompass(scene3d.getNorthCompassDeg());
     hud.renderTooltip(hoverInfo);
 
-    if (view.history.length !== lastHistoryLen || (running && Math.floor(view.metrics.simTimeSec) % 5 === 0)) {
+    // Only redraw Chart.js when a genuine new 5-second history sample arrives (eliminates 60x/s redraw spam!)
+    if (view.historyVersion !== lastHistoryVersion) {
       charts.updateLive(view.history);
-      lastHistoryLen = view.history.length;
+      lastHistoryVersion = view.historyVersion;
     }
 
     requestAnimationFrame(frame);

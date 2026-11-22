@@ -1,8 +1,10 @@
 import {
+  AVERAGE_EMP,
   SCENARIOS,
   type CameraPresetKey,
   type OneWayDirection,
-  type ScenarioKey
+  type ScenarioKey,
+  type VolumePresetKey
 } from '../config/scenarios';
 import type { EngineStateView, SnapshotRecord } from '../simulation/types';
 import type { LightingMode, VehicleHoverInfo } from '../scene/trafficScene';
@@ -10,6 +12,7 @@ import type { BenchmarkMetricKey } from './chartsController';
 
 export interface HudCallbacks {
   onScenarioChange(key: ScenarioKey): void;
+  onVolumePresetChange(preset: VolumePresetKey): void;
   onOneWayDirChange(dir: OneWayDirection): void;
   onCameraPreset(preset: CameraPresetKey): void;
   onLightingChange(mode: LightingMode): void;
@@ -17,7 +20,6 @@ export interface HudCallbacks {
   onReset(): void;
   onSpeedChange(speed: number): void;
   onParamsChange(params: { lam?: number; pStop?: number; stopDur?: number }): void;
-  onPresetReset(): void;
   onBenchMetricChange(metric: BenchmarkMetricKey): void;
   onTakeSnapshot(): void;
   onClearSnapshots(): void;
@@ -28,10 +30,12 @@ export class HudController {
   private drawerOpen = true;
 
   private elClock: HTMLElement;
+  private elCompassArrow: HTMLElement;
   private elWait: HTMLElement;
   private elQueue: HTMLElement;
   private elMaxQueue: HTMLElement;
   private elThroughput: HTMLElement;
+  private elSmpDs: HTMLElement;
   private elLos: HTMLElement;
   private elSafety: HTMLElement;
   private elSpillback: HTMLElement;
@@ -47,6 +51,7 @@ export class HudController {
   private sliderPStop: HTMLInputElement;
   private sliderStopDur: HTMLInputElement;
   private valLam: HTMLElement;
+  private valLamSmp: HTMLElement;
   private valPStop: HTMLElement;
   private valStopDur: HTMLElement;
 
@@ -54,10 +59,12 @@ export class HudController {
     this.callbacks = callbacks;
 
     this.elClock = this.mustGet('simClock');
+    this.elCompassArrow = this.mustGet('compassArrow');
     this.elWait = this.mustGet('kpiWait');
     this.elQueue = this.mustGet('kpiQueue');
     this.elMaxQueue = this.mustGet('kpiMaxQueue');
     this.elThroughput = this.mustGet('kpiThroughput');
+    this.elSmpDs = this.mustGet('kpiSmpDs');
     this.elLos = this.mustGet('kpiLos');
     this.elSafety = this.mustGet('kpiSafety');
     this.elSpillback = this.mustGet('spillbackBadge');
@@ -73,6 +80,7 @@ export class HudController {
     this.sliderPStop = this.mustGet('sliderPStop') as HTMLInputElement;
     this.sliderStopDur = this.mustGet('sliderStopDur') as HTMLInputElement;
     this.valLam = this.mustGet('valLam');
+    this.valLamSmp = this.mustGet('valLamSmp');
     this.valPStop = this.mustGet('valPStop');
     this.valStopDur = this.mustGet('valStopDur');
 
@@ -85,6 +93,18 @@ export class HudController {
     this.bindEvents();
   }
 
+  public syncCompass(northDeg: number): void {
+    this.elCompassArrow.style.transform = `rotate(${northDeg.toFixed(1)}deg)`;
+  }
+
+  public syncLightingSelection(mode: LightingMode): void {
+    document.querySelectorAll<HTMLButtonElement>('[data-lighting]').forEach(btn => {
+      const active = btn.dataset.lighting === mode;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', String(active));
+    });
+  }
+
   public syncState(view: EngineStateView): void {
     const m = view.metrics;
     const cfg = SCENARIOS[view.scenario];
@@ -94,46 +114,54 @@ export class HudController {
     this.elWait.dataset.status = m.avgWaitSec < 60 ? 'ok' : 'warn';
 
     this.elQueue.textContent = `${m.currentQueue}`;
-    this.elMaxQueue.textContent = `maks ${m.maxQueue}`;
+    this.elMaxQueue.textContent = `maks ${m.maxQueue} (target < 20)`;
     this.elQueue.dataset.status = m.maxQueue < 20 ? 'ok' : 'warn';
 
     this.elThroughput.textContent = `${m.throughputPerHour} /jam`;
+    this.elSmpDs.textContent = `${m.throughputSmpPerHour} smp/j · DS ${m.degreeOfSaturation.toFixed(2)}`;
     this.elLos.textContent = `LOS ${m.losGrade} · ${m.statusLabel}`;
     this.elLos.dataset.grade = m.losGrade;
 
     this.elSafety.textContent = cfg.hasSidewalk
-      ? 'Trotoar aktif (pejalan kaki terlindungi)'
-      : 'Tanpa trotoar (pejalan kaki di bahu jalan)';
+      ? 'Trotoar sisi Timur aktif (pejalan kaki terlindungi · lajur kiri)'
+      : 'Tanpa trotoar (pejalan kaki berbagi bahu sempit · lajur kiri)';
 
     if (m.spillbackQueue > 0) {
-      this.elSpillback.textContent = `Luberan Simpang Girang: +${m.spillbackQueue} kendaraan`;
+      this.elSpillback.textContent = `Luberan ${m.spillbackOriginLabel}: +${m.spillbackQueue} kendaraan`;
       this.elSpillback.hidden = false;
     } else {
       this.elSpillback.hidden = true;
     }
   }
 
-  public syncScenarioSelection(key: ScenarioKey, oneWayDir: OneWayDirection): void {
-    const cfg = SCENARIOS[key];
+  public syncScenarioSelection(view: EngineStateView): void {
+    const cfg = SCENARIOS[view.scenario];
     document.querySelectorAll<HTMLButtonElement>('[data-scenario]').forEach(btn => {
-      const active = btn.dataset.scenario === key;
+      const active = btn.dataset.scenario === view.scenario;
       btn.setAttribute('aria-pressed', String(active));
       btn.classList.toggle('is-active', active);
     });
 
-    this.elDirSwitch.hidden = key !== 'sk2';
+    document.querySelectorAll<HTMLButtonElement>('[data-volpreset]').forEach(btn => {
+      const active = btn.dataset.volpreset === view.volumePreset;
+      btn.setAttribute('aria-pressed', String(active));
+      btn.classList.toggle('is-active', active);
+    });
+
+    this.elDirSwitch.hidden = view.scenario !== 'sk2';
     document.querySelectorAll<HTMLButtonElement>('[data-oneway]').forEach(btn => {
-      const active = Number(btn.dataset.oneway) === oneWayDir;
+      const active = Number(btn.dataset.oneway) === view.oneWayDir;
       btn.setAttribute('aria-pressed', String(active));
       btn.classList.toggle('is-active', active);
     });
 
-    this.sliderLam.value = String(cfg.defaultParams.lam);
-    this.valLam.textContent = String(cfg.defaultParams.lam);
-    this.sliderPStop.value = String(cfg.defaultParams.pStop);
-    this.valPStop.textContent = String(cfg.defaultParams.pStop);
-    this.sliderStopDur.value = String(cfg.defaultParams.stopDur);
-    this.valStopDur.textContent = String(cfg.defaultParams.stopDur);
+    this.sliderLam.value = String(view.params.lam);
+    this.valLam.textContent = String(view.params.lam);
+    this.valLamSmp.textContent = `(≈ ${Math.round(view.params.lam * AVERAGE_EMP)} smp)`;
+    this.sliderPStop.value = String(view.params.pStop);
+    this.valPStop.textContent = String(view.params.pStop);
+    this.sliderStopDur.value = String(view.params.stopDur);
+    this.valStopDur.textContent = String(view.params.stopDur);
 
     this.elInsight.textContent = cfg.insight;
   }
@@ -156,12 +184,13 @@ export class HudController {
       status = 'Mengantre';
     }
 
+    const dirLabel = v.dir === 1 ? 'Girang → Pasar' : 'Pasar → Girang';
     this.elTooltip.innerHTML = `
-      <div class="tip-head">${v.kind} #${v.id}</div>
+      <div class="tip-head">${v.kind} #${v.id} · ${dirLabel}</div>
       <div class="tip-row">Status: <strong>${status}</strong></div>
       <div class="tip-row">Kecepatan: ${(v.speedMs * 3.6).toFixed(1)} km/j · Tunggu: ${v.waitSec.toFixed(1)} dtk</div>
     `;
-    const left = Math.min(window.innerWidth - 230, Math.max(12, hover.screenX + 14));
+    const left = Math.min(window.innerWidth - 245, Math.max(12, hover.screenX + 14));
     const top = Math.max(64, hover.screenY - 68);
     this.elTooltip.style.left = `${left}px`;
     this.elTooltip.style.top = `${top}px`;
@@ -203,6 +232,13 @@ export class HudController {
       });
     });
 
+    document.querySelectorAll<HTMLButtonElement>('[data-volpreset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.dataset.volpreset as VolumePresetKey;
+        this.callbacks.onVolumePresetChange(preset);
+      });
+    });
+
     document.querySelectorAll<HTMLButtonElement>('[data-oneway]').forEach(btn => {
       btn.addEventListener('click', () => {
         const dir = Number(btn.dataset.oneway) as OneWayDirection;
@@ -224,13 +260,9 @@ export class HudController {
 
     document.querySelectorAll<HTMLButtonElement>('[data-lighting]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll<HTMLButtonElement>('[data-lighting]').forEach(b => {
-          b.classList.remove('is-active');
-          b.setAttribute('aria-pressed', 'false');
-        });
-        btn.classList.add('is-active');
-        btn.setAttribute('aria-pressed', 'true');
-        this.callbacks.onLightingChange(btn.dataset.lighting as LightingMode);
+        const mode = btn.dataset.lighting as LightingMode;
+        this.syncLightingSelection(mode);
+        this.callbacks.onLightingChange(mode);
       });
     });
 
@@ -269,6 +301,7 @@ export class HudController {
     this.sliderLam.addEventListener('input', () => {
       const lam = Number(this.sliderLam.value);
       this.valLam.textContent = String(lam);
+      this.valLamSmp.textContent = `(≈ ${Math.round(lam * AVERAGE_EMP)} smp)`;
       this.callbacks.onParamsChange({ lam });
     });
 
@@ -283,8 +316,6 @@ export class HudController {
       this.valStopDur.textContent = String(stopDur);
       this.callbacks.onParamsChange({ stopDur });
     });
-
-    this.mustGet('btnPresetReset').addEventListener('click', () => this.callbacks.onPresetReset());
 
     const benchSelect = this.mustGet('selectBenchMetric') as HTMLSelectElement;
     benchSelect.addEventListener('change', () => {
