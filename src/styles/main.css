@@ -4,8 +4,9 @@
 
 :root {
   --paper: #f7f5f0;
-  --surface: #ffffff;
-  --border: #d6d3cd;
+  --surface: rgba(255, 255, 255, 0.94);
+  --surface-solid: #ffffff;
+  --border: #e0ddd6;
   --ink: #18181b;
   --ink-muted: #52525b;
   --maroon: #8b1e24;
@@ -92,34 +93,38 @@ input:focus-visible {
 .toolbar-cluster {
   pointer-events: auto;
   background: var(--surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(24, 24, 27, 0.08);
+  box-shadow: 0 2px 12px rgba(24, 24, 27, 0.07);
 }
 
 .title-plaque {
-  padding: 8px 13px;
-  border-left: 4px solid var(--maroon);
-  max-width: 400px;
+  padding: 7px 12px;
+  border-left: 3.5px solid var(--maroon);
+  max-width: 340px;
 }
 
 .title-plaque h1 {
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: var(--ink);
-  line-height: 1.25;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .title-meta {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--ink-muted);
   display: flex;
   align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .clock-pill {
@@ -133,10 +138,10 @@ input:focus-visible {
 }
 
 .toolbar-cluster {
-  padding: 5px;
+  padding: 4px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -153,10 +158,10 @@ input:focus-visible {
   border: none;
   background: transparent;
   color: var(--ink);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 5px 8px;
-  min-height: 30px;
+  padding: 4px 7px;
+  min-height: 28px;
   white-space: nowrap;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -172,12 +177,12 @@ input:focus-visible {
 
 .action-btn {
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-solid);
   color: var(--ink);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 5px 9px;
-  min-height: 30px;
+  padding: 4px 8px;
+  min-height: 28px;
   border-radius: 6px;
   white-space: nowrap;
   transition: background-color 0.15s ease;
@@ -285,8 +290,13 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
-  max-width: calc(100vw - 404px);
+  gap: 7px;
+  max-width: calc(100vw - 380px);
+  transition: max-width 0.22s ease;
+}
+
+.viewport-shell:has(.analysis-drawer.is-closed) .bottom-dock {
+  max-width: calc(100vw - 28px);
 }
 
 .dock-row {
@@ -298,13 +308,15 @@ input:focus-visible {
 
 .dock-panel {
   background: var(--surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(24, 24, 27, 0.1);
-  padding: 8px 10px;
+  box-shadow: 0 2px 12px rgba(24, 24, 27, 0.08);
+  padding: 6px 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -355,9 +367,9 @@ input:focus-visible {
   background: var(--paper);
   color: var(--ink);
   border-radius: 6px;
-  padding: 7px 12px;
+  padding: 5px 10px;
   text-align: left;
-  min-height: 44px;
+  min-height: 38px;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
@@ -396,8 +408,8 @@ input:focus-visible {
 .telemetry-strip {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 6px 14px;
+  gap: 12px;
+  padding: 5px 12px;
 }
 
 .kpi-cell {
@@ -464,21 +476,25 @@ input:focus-visible {
 /* Collapsible Right Analysis Drawer */
 .analysis-drawer {
   position: absolute;
-  top: 72px;
+  top: 66px;
   right: 14px;
   bottom: 14px;
-  width: 370px;
+  width: 348px;
   max-width: calc(100vw - 28px);
   z-index: 19;
   background: var(--surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 4px 18px rgba(24, 24, 27, 0.12);
+  box-shadow: 0 4px 18px rgba(24, 24, 27, 0.09);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  padding: 14px;
-  gap: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: #d4d0c8 transparent;
+  padding: 12px 13px;
+  gap: 12px;
   transition: transform 0.22s ease, opacity 0.2s ease;
 }
 
@@ -541,7 +557,7 @@ input:focus-visible {
 }
 
 .slider-row {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .slider-row:last-child {
@@ -551,23 +567,28 @@ input:focus-visible {
 .slider-head {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
-  margin-bottom: 4px;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11.5px;
+  margin-bottom: 3px;
 }
 
 .slider-head label {
   font-weight: 600;
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .slider-head output {
   font-family: var(--font-mono);
   font-weight: 700;
   color: var(--maroon);
+  white-space: nowrap;
 }
 
 .slider-row input[type='range'] {
   width: 100%;
+  height: 4px;
   accent-color: var(--maroon);
 }
 
@@ -729,8 +750,11 @@ input:focus-visible {
   color: var(--ink);
   font-size: 10.5px;
   font-weight: 700;
-  padding: 6px 4px;
+  padding: 5px 4px;
   border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
@@ -767,6 +791,40 @@ input:focus-visible {
 
 .source-list strong {
   color: var(--ink);
+}
+
+.source-details summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.source-details summary::after {
+  content: '+';
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.source-details[open] summary::after {
+  content: '−';
+}
+
+.source-details[open] summary {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 1220px) {
+  .analysis-drawer {
+    top: 104px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

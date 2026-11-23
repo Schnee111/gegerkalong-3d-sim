@@ -21,7 +21,7 @@
         <div class="title-plaque">
           <h1>Jl. Gegerkalong Tengah (636 m)</h1>
           <div class="title-meta">
-            <span>Girang → Pasar → Hilir · Kel. 9 MSTR-UPI</span>
+            <span>Girang → Pasar → Hilir</span>
             <span class="clock-pill" id="simClock">07:00:00</span>
             <span class="compass-pill" title="Arah Utara Geografis (Simpang Girang)">
               <span id="compassArrow" class="compass-arrow" aria-hidden="true">↑</span>
@@ -55,8 +55,8 @@
         </div>
 
         <div class="btn-group" role="group" aria-label="Mode POV dan tur kamera">
-          <button type="button" id="btnPovVehicle" class="tool-btn" aria-pressed="false" title="Ikuti kendaraan (atau klik kendaraan 3D mana saja)">POV Kendaraan</button>
-          <button type="button" id="btnPovPedestrian" class="tool-btn" aria-pressed="false" title="Sudut pandang mata pejalan kaki (1,65 m)">POV Pejalan</button>
+          <button type="button" id="btnPovVehicle" class="tool-btn" aria-pressed="false" title="Ikuti kendaraan (atau klik kendaraan 3D mana saja)">POV Mobil</button>
+          <button type="button" id="btnPovPedestrian" class="tool-btn" aria-pressed="false" title="Sudut pandang mata pejalan kaki (1,65 m)">Pejalan</button>
           <button type="button" id="btnTour" class="tool-btn" aria-pressed="false" title="Tur otomatis menyusuri koridor 636 m">Tur</button>
         </div>
 
@@ -75,7 +75,7 @@
         </div>
 
         <button type="button" id="btnToggleDrawer" class="action-btn" aria-expanded="true" aria-controls="analysisDrawer">
-          Tutup Analisis
+          Tutup Panel
         </button>
       </nav>
     </header>
@@ -144,7 +144,7 @@
         </div>
         <p id="scenarioInsight" class="insight-text"></p>
         <div id="kpiSafety" class="safety-line"></div>
-        <div class="controls-hint">WASD/Panah: geser jalan · Scroll: zoom ke kursor · Klik kendaraan: ikuti (POV) · Esc: keluar POV.</div>
+        
       </div>
 
       <div class="drawer-section">
@@ -154,19 +154,19 @@
 
         <div class="preset-strip" role="group" aria-label="Kalibrasi volume arus lalu lintas">
           <button type="button" class="preset-pill is-active" data-volpreset="realPeak" aria-pressed="true">
-            Puncak (850/j)
+            Puncak 850/j
           </button>
           <button type="button" class="preset-pill" data-volpreset="simpyCrn" aria-pressed="false">
-            SimPy CRN (540/j)
+            SimPy 540/j
           </button>
           <button type="button" class="preset-pill" data-volpreset="lkm2" aria-pressed="false">
-            LKM-2 (350/j)
+            LKM-2 350/j
           </button>
         </div>
 
         <div class="slider-row">
           <div class="slider-head">
-            <label for="sliderLam">Laju Kedatangan (Poisson)</label>
+            <label for="sliderLam">Laju Kedatangan</label>
             <output for="sliderLam"><span id="valLam">850</span>/j <small id="valLamSmp">(≈ 474 smp)</small></output>
           </div>
           <input id="sliderLam" type="range" min="200" max="1200" step="10" value="850" />
@@ -182,7 +182,7 @@
 
         <div class="slider-row">
           <div class="slider-head">
-            <label for="sliderPStop">Peluang Hambatan Samping</label>
+            <label for="sliderPStop">Peluang Hambatan</label>
             <output for="sliderPStop"><span id="valPStop">11</span>%</output>
           </div>
           <input id="sliderPStop" type="range" min="0" max="40" step="1" value="11" />
@@ -190,7 +190,7 @@
 
         <div class="slider-row">
           <div class="slider-head">
-            <label for="sliderStopDur">Durasi Parkir / Bongkar Muat</label>
+            <label for="sliderStopDur">Durasi Parkir / Muat</label>
             <output for="sliderStopDur"><span id="valStopDur">30</span> detik</output>
           </div>
           <input id="sliderStopDur" type="range" min="10" max="60" step="1" value="30" />
@@ -208,7 +208,7 @@
 
       <div class="drawer-section">
         <div class="section-head">
-          <h2>Benchmark SimPy CRN (10 Rep · 540/j)</h2>
+          <h2>Benchmark SimPy CRN</h2>
           <select id="selectBenchMetric" class="bench-select" aria-label="Pilih metrik benchmark SimPy">
             <option value="wait">Waktu Tunggu</option>
             <option value="maxq">Antrean Maks</option>
@@ -242,14 +242,15 @@
       </div>
 
       <div class="drawer-section source-footer">
-        <div class="section-head">
-          <h2>Sumber Data &amp; Tim</h2>
-        </div>
-        <ul class="source-list">
+        <details class="source-details">
+          <summary>Sumber Data, Kontrol &amp; Tim</summary>
+          <p class="controls-hint">WASD/Panah: geser · Scroll: zoom · Klik kendaraan: POV · Esc: keluar POV.</p>
+          <ul class="source-list">
           <li><strong>Topologi &amp; Elevasi (636 m penuh):</strong> OpenStreetMap (Way 125178979: Simpang Girang → Pasar No. 35A [355 m] → Simpang Jl. Gegerkalong Hilir [636 m], KPAD, UNPAS, Masjid Baiturahman, Kantor Pos) &amp; Open-Meteo DEM (901 → 889 → 875 m dpl).</li>
           <li><strong>Kalibrasi Volume &amp; SimPy CRN:</strong> BPS (2025: 70,9% motor), Street View (~3,2 m aspal), JPR ITS (2024), Firdaus UPI (2018), PKJI (2023), SainTekA (2025), MRK Polinema (2026), FPIPS UPI/TomTom (18,5 km/j), &amp; SimPy CRN multi-kelas (540/j, 10 replikasi × 2 jam).</li>
           <li><strong>Kelompok 9 MSTR FPMIPA UPI:</strong> Datuk Daneswara R.S., Faisal Nur Qolbi, Muhammad Daffa Maarif, Muhammad Bintang E.D., Hafidz Tantowi.</li>
-        </ul>
+          </ul>
+        </details>
       </div>
     </aside>
   </div>
