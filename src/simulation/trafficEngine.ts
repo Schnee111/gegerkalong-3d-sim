@@ -1,6 +1,6 @@
 import {
-  AVERAGE_EMP,
   BASELINE_STATIC_OBSTACLES,
+  computeEffectiveEmp,
   CORRIDOR,
   SCENARIOS,
   VEHICLE_PROFILES,
@@ -53,18 +53,22 @@ export class TrafficEngine {
   public setScenario(key: ScenarioKey): void {
     this.scenario = key;
     const presetLam = VOLUME_PRESETS[this.volumePreset].lam;
+    const currentMotorPct = this.params.motorPct;
     this.params = {
       ...SCENARIOS[key].defaultParams,
-      lam: presetLam
+      lam: presetLam,
+      motorPct: currentMotorPct
     };
     this.reset();
   }
 
   public setVolumePreset(preset: VolumePresetKey): void {
     this.volumePreset = preset;
+    const currentMotorPct = this.params.motorPct;
     this.params = {
       ...SCENARIOS[this.scenario].defaultParams,
-      lam: VOLUME_PRESETS[preset].lam
+      lam: VOLUME_PRESETS[preset].lam,
+      motorPct: currentMotorPct
     };
     this.reset();
   }
@@ -546,14 +550,21 @@ export class TrafficEngine {
   }
 
   private pickProfile(preferBox: boolean): VehicleProfile {
-    if (preferBox) return VEHICLE_PROFILES.find(p => p.kind === 'Boks Muat') ?? VEHICLE_PROFILES[0];
-    const r = Math.random();
+    const motorProfile = VEHICLE_PROFILES.find(p => p.kind === 'Motor') ?? VEHICLE_PROFILES[0];
+    const motorShare = Math.max(0, Math.min(100, this.params.motorPct)) / 100;
+    if (motorShare >= 1) return motorProfile;
+    if (preferBox) return VEHICLE_PROFILES.find(p => p.kind === 'Boks Muat') ?? motorProfile;
+    if (Math.random() < motorShare) return motorProfile;
+
+    const fourWheelers = VEHICLE_PROFILES.filter(p => p.kind !== 'Motor');
+    const totalW = fourWheelers.reduce((sum, p) => sum + p.weight, 0);
+    const r = Math.random() * totalW;
     let acc = 0;
-    for (const profile of VEHICLE_PROFILES) {
+    for (const profile of fourWheelers) {
       acc += profile.weight;
       if (r <= acc) return profile;
     }
-    return VEHICLE_PROFILES[0];
+    return fourWheelers[0] ?? motorProfile;
   }
 
   private spawnVehicle(
@@ -699,7 +710,7 @@ export class TrafficEngine {
       this.simTimeSec < 5 ? 0 : Math.round((this.servedCount / this.simTimeSec) * 3600);
     const throughputSmpPerHour =
       this.simTimeSec < 5 ? 0 : Math.round((this.servedEmpSum / this.simTimeSec) * 3600);
-    const demandSmpPerHour = Math.round(this.params.lam * AVERAGE_EMP);
+    const demandSmpPerHour = Math.round(this.params.lam * computeEffectiveEmp(this.params.motorPct));
     const degreeOfSaturation = Number((demandSmpPerHour / cfg.effectiveCapacitySmp).toFixed(2));
 
     const spillbackQueue = this.mainSpillbackArrivals.length + this.oppSpillbackArrivals.length;

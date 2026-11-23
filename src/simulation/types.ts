@@ -4,9 +4,10 @@ export type StopType = 'none' | 'onstreet' | 'dropoff' | 'parking';
 export type StopPhase = 'none' | 'approaching' | 'stopped' | 'done';
 
 export interface SimulationParams {
-  lam: number;     // kendaraan fisik/jam
-  pStop: number;   // persen (0-40)
-  stopDur: number; // detik rata-rata
+  lam: number;      // kendaraan fisik/jam
+  motorPct: number; // persen sepeda motor (0-100)
+  pStop: number;    // persen (0-40)
+  stopDur: number;  // detik rata-rata
 }
 
 export interface VehicleAgent {

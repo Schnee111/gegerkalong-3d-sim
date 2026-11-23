@@ -1,5 +1,5 @@
 import {
-  AVERAGE_EMP,
+  computeEffectiveEmp,
   SCENARIOS,
   type CameraPresetKey,
   type OneWayDirection,
@@ -31,7 +31,7 @@ export interface HudCallbacks {
   onPlayPauseToggle(): boolean;
   onReset(): void;
   onSpeedChange(speed: number): void;
-  onParamsChange(params: { lam?: number; pStop?: number; stopDur?: number }): void;
+  onParamsChange(params: { lam?: number; motorPct?: number; pStop?: number; stopDur?: number }): void;
   onBenchMetricChange(metric: BenchmarkMetricKey): void;
   onTakeSnapshot(): void;
   onClearSnapshots(): void;
@@ -75,10 +75,13 @@ export class HudController {
   private elRailReadout: HTMLElement;
 
   private sliderLam: HTMLInputElement;
+  private sliderMotorPct: HTMLInputElement;
   private sliderPStop: HTMLInputElement;
   private sliderStopDur: HTMLInputElement;
   private valLam: HTMLElement;
   private valLamSmp: HTMLElement;
+  private valMotorPct: HTMLElement;
+  private valCarPct: HTMLElement;
   private valPStop: HTMLElement;
   private valStopDur: HTMLElement;
 
@@ -117,10 +120,13 @@ export class HudController {
     this.elRailReadout = this.mustGet('railReadout');
 
     this.sliderLam = this.mustGet('sliderLam') as HTMLInputElement;
+    this.sliderMotorPct = this.mustGet('sliderMotorPct') as HTMLInputElement;
     this.sliderPStop = this.mustGet('sliderPStop') as HTMLInputElement;
     this.sliderStopDur = this.mustGet('sliderStopDur') as HTMLInputElement;
     this.valLam = this.mustGet('valLam');
     this.valLamSmp = this.mustGet('valLamSmp');
+    this.valMotorPct = this.mustGet('valMotorPct');
+    this.valCarPct = this.mustGet('valCarPct');
     this.valPStop = this.mustGet('valPStop');
     this.valStopDur = this.mustGet('valStopDur');
 
@@ -230,7 +236,10 @@ export class HudController {
 
     this.sliderLam.value = String(view.params.lam);
     this.valLam.textContent = String(view.params.lam);
-    this.valLamSmp.textContent = `(≈ ${Math.round(view.params.lam * AVERAGE_EMP)} smp)`;
+    this.sliderMotorPct.value = String(view.params.motorPct);
+    this.valMotorPct.textContent = String(view.params.motorPct);
+    this.valCarPct.textContent = `(${100 - view.params.motorPct}% roda 4)`;
+    this.valLamSmp.textContent = `(≈ ${Math.round(view.params.lam * computeEffectiveEmp(view.params.motorPct))} smp)`;
     this.sliderPStop.value = String(view.params.pStop);
     this.valPStop.textContent = String(view.params.pStop);
     this.sliderStopDur.value = String(view.params.stopDur);
@@ -288,7 +297,7 @@ export class HudController {
         <tr>
           <td>
             <div class="snap-name">${r.scenarioLabel}${r.directionLabel ? ` (${r.directionLabel})` : ''}</div>
-            <div class="snap-sub">${r.params.lam}/jam, stop ${r.params.pStop}%</div>
+            <div class="snap-sub">${r.params.lam}/j, mtr ${r.params.motorPct}%, stop ${r.params.pStop}%</div>
           </td>
           <td class="num ${r.avgWaitSec < 60 ? 'ok' : 'warn'}">${r.avgWaitSec.toFixed(1)} dtk</td>
           <td class="num ${r.maxQueue < 20 ? 'ok' : 'warn'}">${r.maxQueue}</td>
@@ -394,9 +403,19 @@ export class HudController {
 
     this.sliderLam.addEventListener('input', () => {
       const lam = Number(this.sliderLam.value);
+      const motorPct = Number(this.sliderMotorPct.value);
       this.valLam.textContent = String(lam);
-      this.valLamSmp.textContent = `(≈ ${Math.round(lam * AVERAGE_EMP)} smp)`;
+      this.valLamSmp.textContent = `(≈ ${Math.round(lam * computeEffectiveEmp(motorPct))} smp)`;
       this.callbacks.onParamsChange({ lam });
+    });
+
+    this.sliderMotorPct.addEventListener('input', () => {
+      const motorPct = Number(this.sliderMotorPct.value);
+      const lam = Number(this.sliderLam.value);
+      this.valMotorPct.textContent = String(motorPct);
+      this.valCarPct.textContent = `(${100 - motorPct}% roda 4)`;
+      this.valLamSmp.textContent = `(≈ ${Math.round(lam * computeEffectiveEmp(motorPct))} smp)`;
+      this.callbacks.onParamsChange({ motorPct });
     });
 
     this.sliderPStop.addEventListener('input', () => {
