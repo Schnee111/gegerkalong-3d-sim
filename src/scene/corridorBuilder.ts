@@ -615,8 +615,8 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
       baselineClutterGroup.visible = !cfg.hasOffstreet;
       noStopSignGroup.visible = cfg.hasNoStopSign;
       twoWayArrows.visible = cfg.twoWay;
-      oneWayPagiArrows.visible = !cfg.twoWay && oneWayDir === 1;
-      oneWaySoreArrows.visible = !cfg.twoWay && oneWayDir === -1;
+      oneWayPagiArrows.visible = !cfg.twoWay && oneWayDir === -1;
+      oneWaySoreArrows.visible = !cfg.twoWay && oneWayDir === 1;
     }
   };
 }
@@ -1377,8 +1377,8 @@ function buildOsmBackgroundPolygons(parent: THREE.Group): void {
 /**
  * Road directional markings:
  * - Two-Way (Baseline & Skenario 1): Indonesian Left-Hand Traffic (Southbound on East -Z, Northbound on West +Z).
- * - One-Way Pagi (Skenario 2): Blue (#2563EB) heading South (Girang -> Pasar/Hilir), matching LKM-2 Page 6!
- * - One-Way Sore (Skenario 2): Orange (#EA580C) heading North (Pasar/Hilir -> Girang), matching LKM-2 Page 6!
+ * - One-Way Pagi (Skenario 2): Blue (#2563EB) heading North (Hilir -> Pasar -> Girang, jam masuk kampus UPI/UNPAS).
+ * - One-Way Sore (Skenario 2): Orange (#EA580C) heading South (Girang -> Pasar -> Hilir, jam pulang kampus/kerja).
  */
 function buildCurvedRoadArrows(mode: 'twoway' | 'pagi' | 'sore'): THREE.Group {
   const group = new THREE.Group();
@@ -1397,9 +1397,9 @@ function buildCurvedRoadArrows(mode: 'twoway' | 'pagi' | 'sore'): THREE.Group {
       pushCurvedRoadArrowGeos(geos, m, -CORRIDOR.laneOffsetZ, 1);
       pushCurvedRoadArrowGeos(geos, m + 20, CORRIDOR.laneOffsetZ, -1);
     } else if (mode === 'pagi') {
-      pushCurvedRoadArrowGeos(geos, m, 0, 1);
-    } else {
       pushCurvedRoadArrowGeos(geos, m, 0, -1);
+    } else {
+      pushCurvedRoadArrowGeos(geos, m, 0, 1);
     }
   }
   if (geos.length > 0) {

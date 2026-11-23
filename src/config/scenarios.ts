@@ -1,5 +1,5 @@
 export type ScenarioKey = 'baseline' | 'sk1' | 'sk2';
-export type OneWayDirection = 1 | -1; // 1 = Pagi (Girang -> Hilir), -1 = Sore (Hilir -> Girang)
+export type OneWayDirection = -1 | 1; // -1 = Pagi (Hilir -> Girang, masuk kampus), 1 = Sore (Girang -> Hilir, pulang)
 export type CameraPresetKey = 'isometric' | 'girang' | 'pasar' | 'hilir' | 'topdown';
 export type VolumePresetKey = 'realPeak' | 'simpyCrn' | 'lkm2';
 
@@ -193,7 +193,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     code: '2',
     shortName: 'Satu Arah Bergantian',
     title: 'Skenario 2 (Rekayasa Satu Arah Bergantian Jam Sibuk + Petugas)',
-    subtitle: 'Kombinasi Skenario 1 + satu arah Pagi biru (Girang → Hilir) / Sore oranye (Hilir → Girang) + pengawasan petugas',
+    subtitle: 'Kombinasi Skenario 1 + satu arah Pagi biru (Hilir → Girang, masuk kampus) / Sore oranye (Girang → Hilir, pulang) + pengawasan petugas',
     defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 2, stopDur: 12 },
     twoWay: false,
     hasSidewalk: false,
