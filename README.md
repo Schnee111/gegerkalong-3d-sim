@@ -33,6 +33,7 @@ Model antrean diskret SimPy dikalibrasi pada segmen utara (`355 m`, lebar `3,8 m
 Untuk mereproduksi hasil benchmark SimPy secara lokal (membutuhkan Python 3 + `simpy`):
 
 ```bash
+pip install simpy
 python3 scripts/sim_gagerkalong_v2.py
 ```
 

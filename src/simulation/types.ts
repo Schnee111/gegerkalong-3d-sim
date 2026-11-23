@@ -36,6 +36,8 @@ export interface PedestrianAgent {
   id: number;
   xM: number;
   dir: 1 | -1;
+  /** Sisi jalan: -1 = Timur (-Z), +1 = Barat (+Z) */
+  side: -1 | 1;
   speedMs: number;
   lateralJitterM: number;
   shirtHex: number;

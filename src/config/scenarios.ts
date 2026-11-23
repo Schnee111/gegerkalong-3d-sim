@@ -94,6 +94,37 @@ export const VOLUME_PRESETS: Record<VolumePresetKey, VolumePreset> = {
  * Sumbu koordinat: +X = Selatan (Girang -> Hilir), +Z = Barat, -Z = Timur, +Y = Atas.
  * Lalu lintas mengikuti standar Indonesia: LAJUR KIRI (Selatan di sisi Timur -Z, Utara di sisi Barat +Z).
  */
+export interface StaticObstacle {
+  kind: 'scooter' | 'gerobak';
+  xM: number;
+  /** Sisi jalan: -1 = Timur (-Z, lajur Selatan), +1 = Barat (+Z, lajur Utara) */
+  side: -1 | 1;
+  colorHex: number;
+}
+
+const SCOOTER_CLUTTER_COLORS = [0x1f2937, 0xb91c1c, 0x1d4ed8, 0xf8fafc, 0x0f766e] as const;
+const SCOOTER_CLUTTER_POSITIONS_M = [
+  34, 48, 78, 110, 158, 232, 248, 322, 336, 392, 412, 468, 508, 576, 608
+] as const;
+
+/**
+ * Titik hambatan statis pada kondisi Baseline (single source of truth untuk 3D & fisika):
+ * 15 sepeda motor parkir di tepi aspal + 3 gerobak PKL (Pasar 332 m, utara 84 m, selatan 514 m).
+ */
+export const BASELINE_STATIC_OBSTACLES: readonly StaticObstacle[] = [
+  ...SCOOTER_CLUTTER_POSITIONS_M.map(
+    (xM, idx): StaticObstacle => ({
+      kind: 'scooter',
+      xM,
+      side: idx % 2 === 0 ? 1 : -1,
+      colorHex: SCOOTER_CLUTTER_COLORS[idx % SCOOTER_CLUTTER_COLORS.length]
+    })
+  ),
+  { kind: 'gerobak', xM: 332, side: 1, colorHex: 0x1d4ed8 },
+  { kind: 'gerobak', xM: 84, side: -1, colorHex: 0xb91c1c },
+  { kind: 'gerobak', xM: 514, side: -1, colorHex: 0x047857 }
+];
+
 export const CORRIDOR = {
   lengthM: 636.4,
   northSegmentM: 355, // Batas segmen utara (Simpang Girang -> Pasar Gegerkalong) sesuai benchmark SimPy CRN
