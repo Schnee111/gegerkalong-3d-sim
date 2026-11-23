@@ -10,9 +10,10 @@ export interface ScenarioConfig {
   title: string;
   subtitle: string;
   defaultParams: {
-    lam: number;     // kendaraan fisik/jam
-    pStop: number;   // persen (0-40)
-    stopDur: number; // detik rata-rata
+    lam: number;      // kendaraan fisik/jam
+    motorPct: number; // persen sepeda motor (0-100)
+    pStop: number;    // persen (0-40)
+    stopDur: number;  // detik rata-rata
   };
   twoWay: boolean;
   hasSidewalk: boolean;
@@ -162,7 +163,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     shortName: 'Baseline',
     title: 'Kondisi Eksisting (Dua Arah + Parkir Badan Jalan)',
     subtitle: 'Ruas utuh 636 m (lebar 3,8 m) tanpa trotoar, hambatan samping 11% (20–40 dtk) & konflik papasan 2 arah',
-    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 11, stopDur: 30 },
+    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, motorPct: 75, pStop: 11, stopDur: 30 },
     twoWay: true,
     hasSidewalk: false,
     hasOffstreet: false,
@@ -178,7 +179,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     shortName: 'Drop-Off & Parkir',
     title: 'Skenario 1 (Parkir Off-Street KPAD/Pasar & Jadwal Muat Luar Sibuk)',
     subtitle: 'Ruas 3,8 m (tanpa trotoar), parkir off-street KPAD/Pasar (262-296 m), teluk drop-off (186-214 m), jadwal muat luar sibuk',
-    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 3, stopDur: 14 },
+    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, motorPct: 75, pStop: 3, stopDur: 14 },
     twoWay: true,
     hasSidewalk: false,
     hasOffstreet: true,
@@ -194,7 +195,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     shortName: 'Satu Arah Bergantian',
     title: 'Skenario 2 (Rekayasa Satu Arah Bergantian Jam Sibuk + Petugas)',
     subtitle: 'Kombinasi Skenario 1 + satu arah Pagi biru (Hilir → Girang, masuk kampus) / Sore oranye (Girang → Hilir, pulang) + pengawasan petugas',
-    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 2, stopDur: 12 },
+    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, motorPct: 75, pStop: 2, stopDur: 12 },
     twoWay: false,
     hasSidewalk: false,
     hasOffstreet: true,
@@ -257,6 +258,18 @@ export const VEHICLE_PROFILES: VehicleProfile[] = [
 
 /** Rata-rata tertimbang emp per kendaraan fisik (0,558 smp/kend.) */
 export const AVERAGE_EMP = VEHICLE_PROFILES.reduce((sum, p) => sum + p.weight * p.emp, 0);
+
+const MOTOR_PROFILE_EMP = VEHICLE_PROFILES.find(p => p.kind === 'Motor')?.emp ?? 0.4;
+const FOUR_WHEEL_PROFILES = VEHICLE_PROFILES.filter(p => p.kind !== 'Motor');
+const FOUR_WHEEL_BASE_WEIGHT = FOUR_WHEEL_PROFILES.reduce((sum, p) => sum + p.weight, 0);
+const FOUR_WHEEL_AVG_EMP =
+  FOUR_WHEEL_PROFILES.reduce((sum, p) => sum + p.weight * p.emp, 0) / FOUR_WHEEL_BASE_WEIGHT;
+
+/** Hitung rata-rata tertimbang emp/kendaraan secara dinamis dari persentase sepeda motor (0-100%) */
+export function computeEffectiveEmp(motorPct: number): number {
+  const m = Math.max(0, Math.min(100, motorPct)) / 100;
+  return m * MOTOR_PROFILE_EMP + (1 - m) * FOUR_WHEEL_AVG_EMP;
+}
 
 /**
  * Hasil benchmark SimPy CRN multi-kelas (scripts/sim_gagerkalong_v2.py):
