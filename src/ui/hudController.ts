@@ -442,7 +442,7 @@ export class HudController {
   private syncDrawerState(): void {
     this.elDrawer.classList.toggle('is-closed', !this.drawerOpen);
     this.elDrawerBtn.setAttribute('aria-expanded', String(this.drawerOpen));
-    this.elDrawerBtn.textContent = this.drawerOpen ? 'Tutup Analisis' : 'Panel Analisis';
+    this.elDrawerBtn.textContent = this.drawerOpen ? 'Tutup Panel' : 'Panel Analisis';
   }
 
   private mustGet(id: string): HTMLElement {
