@@ -154,10 +154,13 @@
 
         <div class="preset-strip" role="group" aria-label="Kalibrasi volume arus lalu lintas">
           <button type="button" class="preset-pill is-active" data-volpreset="realPeak" aria-pressed="true">
-            Riil Puncak (850/jam)
+            Puncak (850/j)
+          </button>
+          <button type="button" class="preset-pill" data-volpreset="simpyCrn" aria-pressed="false">
+            SimPy CRN (540/j)
           </button>
           <button type="button" class="preset-pill" data-volpreset="lkm2" aria-pressed="false">
-            Preset LKM-2 (350/jam)
+            LKM-2 (350/j)
           </button>
         </div>
 
@@ -166,23 +169,23 @@
             <label for="sliderLam">Laju Kedatangan (Poisson)</label>
             <output for="sliderLam"><span id="valLam">850</span>/j <small id="valLamSmp">(≈ 474 smp)</small></output>
           </div>
-          <input id="sliderLam" type="range" min="200" max="1200" step="50" value="850" />
+          <input id="sliderLam" type="range" min="200" max="1200" step="10" value="850" />
         </div>
 
         <div class="slider-row">
           <div class="slider-head">
             <label for="sliderPStop">Peluang Hambatan Samping</label>
-            <output for="sliderPStop"><span id="valPStop">20</span>%</output>
+            <output for="sliderPStop"><span id="valPStop">11</span>%</output>
           </div>
-          <input id="sliderPStop" type="range" min="0" max="40" step="1" value="20" />
+          <input id="sliderPStop" type="range" min="0" max="40" step="1" value="11" />
         </div>
 
         <div class="slider-row">
           <div class="slider-head">
             <label for="sliderStopDur">Durasi Parkir / Bongkar Muat</label>
-            <output for="sliderStopDur"><span id="valStopDur">40</span> detik</output>
+            <output for="sliderStopDur"><span id="valStopDur">30</span> detik</output>
           </div>
-          <input id="sliderStopDur" type="range" min="10" max="60" step="5" value="40" />
+          <input id="sliderStopDur" type="range" min="10" max="60" step="1" value="30" />
         </div>
       </div>
 
@@ -197,7 +200,7 @@
 
       <div class="drawer-section">
         <div class="section-head">
-          <h2>Benchmark SimPy (10 Replikasi)</h2>
+          <h2>Benchmark SimPy CRN (10 Rep · 540/j)</h2>
           <select id="selectBenchMetric" class="bench-select" aria-label="Pilih metrik benchmark SimPy">
             <option value="wait">Waktu Tunggu</option>
             <option value="maxq">Antrean Maks</option>
@@ -236,7 +239,7 @@
         </div>
         <ul class="source-list">
           <li><strong>Topologi &amp; Elevasi (636 m penuh):</strong> OpenStreetMap (Way 125178979: Simpang Girang → Pasar No. 35A [355 m] → Simpang Jl. Gegerkalong Hilir [636 m], KPAD, UNPAS, Masjid Baiturahman, Kantor Pos) &amp; Open-Meteo DEM (901 → 889 → 875 m dpl).</li>
-          <li><strong>Kalibrasi Volume:</strong> Firdaus UPI (2018), ERI Korlantas/BPS Kota Bandung (2024: 75% motor), MKJI/PKJI lajur kiri 3,8 m, &amp; benchmark SimPy LKM-2 (segmen utara 355 m).</li>
+          <li><strong>Kalibrasi Volume &amp; SimPy CRN:</strong> BPS Prov. Jabar (2024: 71,24% motor), JPR ITS (2024), Firdaus UPI (2018), PKJI (2023), SainTekA (2025), MRK Polinema (2026), FPIPS UPI/TomTom (18,5 km/j), &amp; SimPy CRN multi-kelas (540/j, 10 replikasi × 2 jam).</li>
           <li><strong>Kelompok 9 MSTR FPMIPA UPI:</strong> Datuk Daneswara R.S., Faisal Nur Qolbi, Muhammad Daffa Maarif, Muhammad Bintang E.D., Hafidz Tantowi.</li>
         </ul>
       </div>

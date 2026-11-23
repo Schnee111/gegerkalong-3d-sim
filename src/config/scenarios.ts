@@ -1,7 +1,7 @@
 export type ScenarioKey = 'baseline' | 'sk1' | 'sk2';
 export type OneWayDirection = 1 | -1; // 1 = Pagi (Girang -> Hilir), -1 = Sore (Hilir -> Girang)
 export type CameraPresetKey = 'isometric' | 'girang' | 'pasar' | 'hilir' | 'topdown';
-export type VolumePresetKey = 'realPeak' | 'lkm2';
+export type VolumePresetKey = 'realPeak' | 'simpyCrn' | 'lkm2';
 
 export interface ScenarioConfig {
   key: ScenarioKey;
@@ -56,23 +56,31 @@ export interface VolumePreset {
 }
 
 /**
- * Preset volume berbasis data publik & LKM-2 Kelompok 9:
+ * Preset volume berbasis data publik, kalibrasi SimPy CRN multi-kelas, & LKM-2 Kelompok 9:
  * - Riil Puncak (850 kend./jam ≈ 474 smp/jam): mengacu limpahan arus jam sibuk pagi dari
  *   Simpang Gegerkalong Girang (5.746 smp/jam; gerbang motor UPI 2.117 smp/jam, Firdaus UPI 2018)
  *   yang masuk ke ruas lokal sempit Jl. Gegerkalong Tengah (3,8 m) dengan komposisi 75% motor
- *   (ERI Korlantas/BPS Kota Bandung 2024).
+ *   (BPS Prov. Jabar 2024: 71,24% motor + survei kampus JPR ITS 2024).
+ * - SimPy CRN (540 kend./jam ≈ 301 smp/jam pada 3D / ≈ 245 skr/jam pada SimPy): kalibrasi multi-kelas
+ *   (75% motor, 25% roda 4) dengan Common Random Numbers (10 replikasi × 2 jam, warm-up 10 menit).
  * - Preset LKM-2 (350 kend./jam ≈ 195 smp/jam): asumsi laju kedatangan awal pemodelan SimPy LKM-2.
  */
 export const VOLUME_PRESETS: Record<VolumePresetKey, VolumePreset> = {
   realPeak: {
     key: 'realPeak',
-    label: 'Riil Puncak (850/jam)',
+    label: 'Puncak (850/j)',
     lam: 850,
-    description: 'Jam sibuk pagi riil Jl. Gegerkalong Tengah (~474 smp/jam; Firdaus UPI 2018 & BPS Bandung 2024)'
+    description: 'Jam sibuk pagi riil Jl. Gegerkalong Tengah (~474 smp/jam; Firdaus UPI 2018 & BPS Jabar 2024)'
+  },
+  simpyCrn: {
+    key: 'simpyCrn',
+    label: 'SimPy CRN (540/j)',
+    lam: 540,
+    description: 'Kalibrasi SimPy CRN multi-kelas (540 kend./jam; 75% motor, 25% roda 4; 10 replikasi × 2 jam)'
   },
   lkm2: {
     key: 'lkm2',
-    label: 'Preset LKM-2 (350/jam)',
+    label: 'LKM-2 (350/j)',
     lam: 350,
     description: 'Asumsi skenario awal pemodelan SimPy pada LKM-2 Kelompok 9 (350 kend./jam)'
   }
@@ -88,7 +96,7 @@ export const VOLUME_PRESETS: Record<VolumePresetKey, VolumePreset> = {
  */
 export const CORRIDOR = {
   lengthM: 636.4,
-  northSegmentM: 355, // Batas segmen utara (Simpang Girang -> Pasar Gegerkalong) sesuai benchmark SimPy LKM-2
+  northSegmentM: 355, // Batas segmen utara (Simpang Girang -> Pasar Gegerkalong) sesuai benchmark SimPy CRN
   roadWidthM: 3.8, // Lebar aspal riil 3,8 m (sesuai LKM-2: 3-4 m & OSM Way 125178979)
   laneOffsetZ: 0.82,
   sidewalkWidthM: 1.25,
@@ -122,56 +130,56 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     code: '0',
     shortName: 'Baseline',
     title: 'Kondisi Eksisting (Dua Arah + Parkir Badan Jalan)',
-    subtitle: 'Ruas utuh 636 m (lebar 3,8 m) tanpa trotoar, hambatan samping 20% (30-50 dtk)',
-    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 20, stopDur: 40 },
+    subtitle: 'Ruas utuh 636 m (lebar 3,8 m) tanpa trotoar, hambatan samping 11% (20–40 dtk) & konflik papasan 2 arah',
+    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 11, stopDur: 30 },
     twoWay: true,
     hasSidewalk: false,
     hasOffstreet: false,
     hasNoStopSign: false,
     effectiveCapacitySmp: 440,
-    simpyBenchmark: { wait: 404, maxq: 85, thr: 322 },
+    simpyBenchmark: { wait: 534, maxq: 156, thr: 468 },
     insight:
-      'Parkir dan bongkar muat di badan jalan (terutama sekitar Pasar Gegerkalong di tengah koridor) menyempitkan lebar efektif ruas 3,8 m. Arus dua arah lajur kiri saling tertahan hingga antrean meluber ke Simpang Girang.'
+      'Parkir dan bongkar muat di badan jalan sekitar Pasar Gegerkalong (PKJI kelas Sangat Tinggi) menyempitkan lebar efektif ruas 3,8 m. Arus dua arah lajur kiri saling tertahan konflik papasan (9–17 dtk) hingga antrean meluber ke Simpang Girang.'
   },
   sk1: {
     key: 'sk1',
     code: '1',
     shortName: 'Drop-Off & Parkir',
-    title: 'Skenario 1 (Zona Drop-Off & Parkir Luar Badan Jalan)',
-    subtitle: 'Ruas 3,8 m rapat bangunan (tanpa trotoar), teluk drop-off (186-214 m) & parkir khusus (262-296 m), rambu S coret',
-    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 8, stopDur: 25 },
+    title: 'Skenario 1 (Parkir Off-Street KPAD/Pasar & Jadwal Muat Luar Sibuk)',
+    subtitle: 'Ruas 3,8 m (tanpa trotoar), parkir off-street KPAD/Pasar (262-296 m), teluk drop-off (186-214 m), jadwal muat luar sibuk',
+    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 3, stopDur: 14 },
     twoWay: true,
     hasSidewalk: false,
     hasOffstreet: true,
     hasNoStopSign: true,
     effectiveCapacitySmp: 820,
-    simpyBenchmark: { wait: 8, maxq: 9, thr: 358 },
+    simpyBenchmark: { wait: 52, maxq: 27, thr: 537 },
     insight:
-      'Karena bangunan kiri-kanan menempel langsung ke tepi jalan (tidak ada ruang pelebaran maupun trotoar), kendaraan singgah diarahkan ke teluk drop-off Timur (186-214 m) dan kantong parkir Barat (262-296 m) agar badan jalan bebas hambatan samping.'
+      'Karena bangunan kiri-kanan menempel langsung ke tepi jalan (tanpa ruang pelebaran maupun trotoar), kendaraan singgah dialihkan ke kantong parkir off-street KPAD/Pasar (262-296 m) dan teluk drop-off Timur (186-214 m), disertai jadwal bongkar muat di luar jam sibuk sehingga hambatan samping turun drastis.'
   },
   sk2: {
     key: 'sk2',
     code: '2',
     shortName: 'Satu Arah Bergantian',
-    title: 'Skenario 2 (Rekayasa Satu Arah Bergantian Jam Sibuk)',
-    subtitle: 'Kombinasi Skenario 1 + satu arah Pagi biru (Girang → Hilir) / Sore oranye (Hilir → Girang)',
-    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 4, stopDur: 20 },
+    title: 'Skenario 2 (Rekayasa Satu Arah Bergantian Jam Sibuk + Petugas)',
+    subtitle: 'Kombinasi Skenario 1 + satu arah Pagi biru (Girang → Hilir) / Sore oranye (Hilir → Girang) + pengawasan petugas',
+    defaultParams: { lam: VOLUME_PRESETS.realPeak.lam, pStop: 2, stopDur: 12 },
     twoWay: false,
     hasSidewalk: false,
     hasOffstreet: true,
     hasNoStopSign: true,
     effectiveCapacitySmp: 1120,
-    simpyBenchmark: { wait: 3, maxq: 6, thr: 361 },
+    simpyBenchmark: { wait: 1, maxq: 4, thr: 538 },
     insight:
-      'Seluruh lebar efektif 3,8 m yang diapit langsung bangunan kiri-kanan difokuskan untuk satu arah arus dominan jam sibuk tanpa parkir badan jalan. Konflik berpapasan hilang sepenuhnya sehingga kapasitas keluar optimal tanpa perlu pelebaran jalan.'
+      'Seluruh lebar efektif 3,8 m yang diapit langsung bangunan kiri-kanan difokuskan untuk satu arah arus dominan jam sibuk tanpa parkir badan jalan. Konflik berpapasan hilang sepenuhnya sehingga waktu tunggu SimPy CRN turun 99,8% (534 → 1 dtk) tanpa pelebaran jalan.'
   }
 };
 
 /**
- * Komposisi armada mengacu pada data ERI Korlantas Polri / BPS Kota Bandung (2024):
- * ~75,4% sepeda motor, ~20,1% mobil penumpang/angkot, ~4,5% kendaraan barang.
+ * Komposisi armada mengacu pada data BPS Prov. Jabar (2024: 71,24% motor di Kota Bandung)
+ * & survei moda kampus JPR ITS (2024): 75% sepeda motor, 16% mobil penumpang, 5% angkot, 4% boks muat.
  * Kecepatan bebas ruas lokal sempit 3,8 m terkalibrasi pada 5,8-8,2 m/s (21-30 km/jam),
- * setara ~50-60 detik untuk segmen utara 355 m (selaras LKM-2) & ~88 detik untuk ruas penuh 636 m.
+ * selaras dengan rata-rata lalu lintas Kota Bandung 18,5 km/jam (FPIPS UPI / TomTom Traffic Index).
  */
 export const VEHICLE_PROFILES: VehicleProfile[] = [
   {
@@ -219,11 +227,15 @@ export const VEHICLE_PROFILES: VehicleProfile[] = [
 /** Rata-rata tertimbang emp per kendaraan fisik (0,558 smp/kend.) */
 export const AVERAGE_EMP = VEHICLE_PROFILES.reduce((sum, p) => sum + p.weight * p.emp, 0);
 
+/**
+ * Hasil benchmark SimPy CRN multi-kelas (scripts/sim_gagerkalong_v2.py):
+ * 10 replikasi × 2 jam (warm-up 10 menit), λ = 540 kend./jam (75% motor, 25% roda 4).
+ */
 export const SIMPY_BENCHMARK_SERIES = {
   labels: ['Baseline', 'Skenario 1', 'Skenario 2'],
-  wait: { label: 'Waktu Tunggu (detik)', values: [404, 8, 3], unit: 'dtk' },
-  maxq: { label: 'Antrean Maks (kendaraan)', values: [85, 9, 6], unit: 'kend.' },
-  thr: { label: 'Kendaraan Keluar (/jam)', values: [322, 358, 361], unit: 'kend./jam' }
+  wait: { label: 'Waktu Tunggu (detik)', values: [534, 52, 1], unit: 'dtk' },
+  maxq: { label: 'Antrean Maks (kendaraan)', values: [156, 27, 4], unit: 'kend.' },
+  thr: { label: 'Kendaraan Keluar (/jam)', values: [468, 537, 538], unit: 'kend./jam' }
 } as const;
 
 /**
