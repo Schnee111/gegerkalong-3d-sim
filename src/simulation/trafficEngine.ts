@@ -26,7 +26,7 @@ const MAX_SPILLBACK_BUFFER = 160;
 export class TrafficEngine {
   private scenario: ScenarioKey = 'baseline';
   private volumePreset: VolumePresetKey = 'realPeak';
-  private oneWayDir: OneWayDirection = 1;
+  private oneWayDir: OneWayDirection = -1;
   private params: SimulationParams = { ...SCENARIOS.baseline.defaultParams };
 
   private simTimeSec = 0;
@@ -740,7 +740,7 @@ export class TrafficEngine {
   }
 
   private formatClock(sec: number): string {
-    const startHour = !SCENARIOS[this.scenario].twoWay && this.oneWayDir === -1 ? 16 : 7;
+    const startHour = !SCENARIOS[this.scenario].twoWay && this.oneWayDir === 1 ? 16 : 7;
     const base = startHour * 3600 + Math.floor(sec);
     const h = Math.floor(base / 3600) % 24;
     const m = Math.floor((base % 3600) / 60);

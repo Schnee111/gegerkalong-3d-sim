@@ -108,7 +108,7 @@ function bootstrap(): void {
         scenarioKey: view.scenario,
         scenarioLabel: cfg.shortName,
         directionLabel:
-          view.scenario === 'sk2' ? (view.oneWayDir === 1 ? 'Pagi' : 'Sore') : '',
+          view.scenario === 'sk2' ? (view.oneWayDir === -1 ? 'Pagi' : 'Sore') : '',
         params: { ...view.params },
         avgWaitSec: view.metrics.avgWaitSec,
         maxQueue: view.metrics.maxQueue,
