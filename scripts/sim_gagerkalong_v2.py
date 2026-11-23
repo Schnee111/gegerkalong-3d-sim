@@ -1,9 +1,11 @@
 """Simulasi antrean kendaraan Jalan Gegerkalong Tengah (Multi-Kelas + Common Random Numbers).
 
-Kalibrasi lapangan & literatur:
-- Komposisi 75% Motor / 25% Roda 4 (BPS Prov. Jabar 2024: 71,24% motor + survei kampus JPR ITS 2024).
-- Lebar aspal riil 3,8 m (OpenStreetMap Way 125178979 & LKM-2): dua mobil 2 arah tidak dapat
-  berpapasan langsung sehingga memicu tunda konflik papasan (9-17 dtk) pada Baseline & Skenario 1.
+Kalibrasi lapangan & literatur (diperbarui untuk lebar aspal efektif ~3,2 m):
+- Lebar aspal efektif ~3,2 m (fotogrametri Google Street View No. 86 Jl. Gegerkalong Tengah:
+  3,15–3,21 m; rentang 3–4 m LKM-2; ruang dinding-ke-dinding ~4,2 m termasuk got/bahu).
+  Dua mobil (2 x 1,75 m = 3,5 m) tidak muat berpapasan langsung sehingga memicu tunda konflik
+  papasan (12–22 dtk) pada Baseline & Skenario 1.
+- Komposisi 75% Motor / 25% Roda 4 (BPS 2025 Kota Bandung: 70,9% motor + survei kampus JPR ITS 2024).
 - Hambatan samping parkir/bongkar muat depan Pasar Gegerkalong (PKJI 2023 & SainTekA 2025).
 - Kecepatan rata-rata lalu lintas Kota Bandung 18,5 km/jam (FPIPS UPI / TomTom Traffic Index).
 - Metode Common Random Numbers (CRN): urutan kedatangan dan tipe kendaraan identik antar skenario
@@ -18,7 +20,7 @@ import simpy
 SIM_TIME = 7200       # 2 jam simulasi (detik)
 WARMUP = 600          # 10 menit warm-up dibuang
 REPLICATIONS = 10
-LAM_PER_HOUR = 540    # 540 kend./jam (75% motor ≈ 245 skr/jam)
+LAM_PER_HOUR = 540    # 540 kend./jam (75% motor, 25% roda 4)
 P_MOTOR = 0.75        # 75% sepeda motor, 25% kendaraan roda 4
 
 
@@ -37,7 +39,7 @@ def generate_arrival_stream(seed):
 
 
 class RealisticNarrowRoad:
-    """Model SimPy ruas sempit 3,8 m dengan 2 kelas kendaraan, konflik papasan, & hambatan samping."""
+    """Model SimPy ruas sempit ~3,2 m dengan 2 kelas kendaraan, konflik papasan, & hambatan samping."""
 
     def __init__(self, env, scn, collect_from):
         self.env = env
@@ -82,13 +84,13 @@ class RealisticNarrowRoad:
 SCENARIOS = [
     {
         "key": "baseline",
-        "label": "Baseline (2 arah + parkir badan jalan)",
+        "label": "Baseline (2 arah + parkir badan jalan, aspal ~3,2 m)",
         "two_way": True,
-        "svc_motor": 2.2,
-        "svc_car": 3.8,
-        "p_conflict_motor": 0.14,
-        "p_conflict_car": 0.65,
-        "conflict_delay": (9, 17),
+        "svc_motor": 2.3,
+        "svc_car": 4.0,
+        "p_conflict_motor": 0.18,
+        "p_conflict_car": 0.72,
+        "conflict_delay": (12, 22),
         "p_stop_motor": 0.035,
         "p_stop_car": 0.11,
         "stop_delay": (20, 40),
@@ -97,11 +99,11 @@ SCENARIOS = [
         "key": "sk1",
         "label": "Skenario 1 (2 arah + parkir KPAD & muat luar sibuk)",
         "two_way": True,
-        "svc_motor": 2.2,
-        "svc_car": 3.8,
-        "p_conflict_motor": 0.13,
-        "p_conflict_car": 0.62,
-        "conflict_delay": (9, 17),
+        "svc_motor": 2.3,
+        "svc_car": 4.0,
+        "p_conflict_motor": 0.16,
+        "p_conflict_car": 0.68,
+        "conflict_delay": (12, 22),
         "p_stop_motor": 0.015,
         "p_stop_car": 0.03,
         "stop_delay": (10, 18),

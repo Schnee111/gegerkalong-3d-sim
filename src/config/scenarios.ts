@@ -168,9 +168,9 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     hasOffstreet: false,
     hasNoStopSign: false,
     effectiveCapacitySmp: 440,
-    simpyBenchmark: { wait: 534, maxq: 156, thr: 468 },
+    simpyBenchmark: { wait: 1182, maxq: 338, thr: 371 },
     insight:
-      'Parkir dan bongkar muat di badan jalan sekitar Pasar Gegerkalong (PKJI kelas Sangat Tinggi) menyempitkan lebar efektif ruas 3,8 m. Arus dua arah lajur kiri saling tertahan konflik papasan (9–17 dtk) hingga antrean meluber ke Simpang Girang.'
+      'Parkir dan bongkar muat di badan jalan sekitar Pasar Gegerkalong (PKJI kelas Sangat Tinggi) menyempitkan lebar efektif ruas 3,8 m. Arus dua arah lajur kiri saling tertahan konflik papasan (12–22 dtk pada aspal efektif ~3,2 m) hingga antrean meluber ke Simpang Girang.'
   },
   sk1: {
     key: 'sk1',
@@ -184,7 +184,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     hasOffstreet: true,
     hasNoStopSign: true,
     effectiveCapacitySmp: 820,
-    simpyBenchmark: { wait: 52, maxq: 27, thr: 537 },
+    simpyBenchmark: { wait: 566, maxq: 177, thr: 454 },
     insight:
       'Karena bangunan kiri-kanan menempel langsung ke tepi jalan (tanpa ruang pelebaran maupun trotoar), kendaraan singgah dialihkan ke kantong parkir off-street KPAD/Pasar (262-296 m) dan teluk drop-off Timur (186-214 m), disertai jadwal bongkar muat di luar jam sibuk sehingga hambatan samping turun drastis.'
   },
@@ -202,7 +202,7 @@ export const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
     effectiveCapacitySmp: 1120,
     simpyBenchmark: { wait: 1, maxq: 4, thr: 538 },
     insight:
-      'Seluruh lebar efektif 3,8 m yang diapit langsung bangunan kiri-kanan difokuskan untuk satu arah arus dominan jam sibuk tanpa parkir badan jalan. Konflik berpapasan hilang sepenuhnya sehingga waktu tunggu SimPy CRN turun 99,8% (534 → 1 dtk) tanpa pelebaran jalan.'
+      'Seluruh lebar efektif 3,8 m yang diapit langsung bangunan kiri-kanan difokuskan untuk satu arah arus dominan jam sibuk tanpa parkir badan jalan. Konflik berpapasan hilang sepenuhnya sehingga waktu tunggu SimPy CRN turun 99,9% (1.182 → 1 dtk) tanpa pelebaran jalan.'
   }
 };
 
@@ -264,9 +264,9 @@ export const AVERAGE_EMP = VEHICLE_PROFILES.reduce((sum, p) => sum + p.weight * 
  */
 export const SIMPY_BENCHMARK_SERIES = {
   labels: ['Baseline', 'Skenario 1', 'Skenario 2'],
-  wait: { label: 'Waktu Tunggu (detik)', values: [534, 52, 1], unit: 'dtk' },
-  maxq: { label: 'Antrean Maks (kendaraan)', values: [156, 27, 4], unit: 'kend.' },
-  thr: { label: 'Kendaraan Keluar (/jam)', values: [468, 537, 538], unit: 'kend./jam' }
+  wait: { label: 'Waktu Tunggu Antrean (detik)', values: [1182, 566, 1], unit: 'dtk' },
+  maxq: { label: 'Antrean Maks (kendaraan)', values: [338, 177, 4], unit: 'kend.' },
+  thr: { label: 'Kendaraan Keluar (/jam)', values: [371, 454, 538], unit: 'kend./jam' }
 } as const;
 
 /**
