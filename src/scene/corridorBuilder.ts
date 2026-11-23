@@ -7,7 +7,7 @@ import {
   OSM_SIDE_ROADS,
   type OsmFrontBuilding
 } from '../config/osmCorridorData';
-import { CORRIDOR, SCENARIOS, type OneWayDirection, type ScenarioKey } from '../config/scenarios';
+import { BASELINE_STATIC_OBSTACLES, CORRIDOR, SCENARIOS, type OneWayDirection, type ScenarioKey } from '../config/scenarios';
 import {
   createDetailedKosBuilding,
   createDetailedRuko,
@@ -321,24 +321,22 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
   const oneWaySoreArrows = buildCurvedRoadArrows('sore');
   worldGroup.add(twoWayArrows, oneWayPagiArrows, oneWaySoreArrows);
 
-  // 4. Baseline Street Clutter (parked scooters encroaching the narrow curved road + gerobak)
+  // 4. Baseline Street Clutter (15 parked scooters + 3 gerobak synced with trafficEngine physics)
   const baselineClutterGroup = new THREE.Group();
-  const scooterColors = [0x1f2937, 0xb91c1c, 0x1d4ed8, 0xf8fafc, 0x0f766e];
-  const clutterSpotsM = [34, 48, 78, 110, 158, 232, 248, 322, 336, 392, 412, 468, 508, 576, 608];
-  clutterSpotsM.forEach((m, idx) => {
-    const side = idx % 2 === 0 ? 1 : -1;
-    const f = sampleCorridorFrame(m, side * (CORRIDOR.roadWidthM / 2 + 0.04));
-    const sc = buildDetailedIndonesianScooter(scooterColors[idx % scooterColors.length], false, false);
-    sc.position.set(f.x, f.y + 0.05, f.z);
-    sc.rotation.y = f.yaw + (side === 1 ? -0.42 : 0.42);
-    baselineClutterGroup.add(sc);
-  });
-  for (const [mCart, side, hex] of [[332, 1, 0x1d4ed8], [84, -1, 0xb91c1c], [514, -1, 0x047857]] as const) {
-    const f = sampleCorridorFrame(mCart, side * (CORRIDOR.roadWidthM / 2 - 0.06));
-    const cart = createGerobakCart(hex);
-    cart.position.set(f.x, f.y + 0.05, f.z);
-    cart.rotation.y = f.yaw;
-    baselineClutterGroup.add(cart);
+  for (const obs of BASELINE_STATIC_OBSTACLES) {
+    if (obs.kind === 'scooter') {
+      const f = sampleCorridorFrame(obs.xM, obs.side * (CORRIDOR.roadWidthM / 2 + 0.04));
+      const sc = buildDetailedIndonesianScooter(obs.colorHex, false, false);
+      sc.position.set(f.x, f.y + 0.05, f.z);
+      sc.rotation.y = f.yaw + (obs.side === 1 ? -0.42 : 0.42);
+      baselineClutterGroup.add(sc);
+    } else {
+      const f = sampleCorridorFrame(obs.xM, obs.side * (CORRIDOR.roadWidthM / 2 - 0.06));
+      const cart = createGerobakCart(obs.colorHex);
+      cart.position.set(f.x, f.y + 0.05, f.z);
+      cart.rotation.y = f.yaw;
+      baselineClutterGroup.add(cart);
+    }
   }
   worldGroup.add(baselineClutterGroup);
 
@@ -590,6 +588,7 @@ export function buildCorridorEnvironment(scene: THREE.Scene): CorridorHandles {
       id: 900 + i,
       xM: mShop,
       dir: i % 2 === 0 ? 1 : -1,
+      side: 1,
       speedMs: 0,
       lateralJitterM: 0,
       shirtHex: [0x1d4ed8, 0x15803d, 0xb91c1c, 0x7c3aed, 0x0f766e, 0xd97706][i]

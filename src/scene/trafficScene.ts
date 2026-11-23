@@ -515,7 +515,7 @@ export class TrafficScene3D {
       }
       const lateralZ = cfg.hasSidewalk
         ? -(CORRIDOR.roadWidthM / 2 + CORRIDOR.sidewalkWidthM * 0.5 + 0.24) + p.lateralJitterM * 0.35
-        : -(CORRIDOR.roadWidthM / 2 + 0.08) + p.lateralJitterM * 0.1;
+        : p.side * (CORRIDOR.roadWidthM / 2 + (cfg.hasOffstreet ? 0.12 : 0.02)) + p.lateralJitterM * 0.1;
       const frame = sampleCorridorFrame(p.xM, lateralZ);
       const walkCycle = this.elapsedSimSec * 6.8 + bundle.phaseOffset;
       const walkBob = Math.abs(Math.sin(walkCycle)) * 0.045;
@@ -672,7 +672,7 @@ export class TrafficScene3D {
         // Keep camera cleanly centered on the raised sidewalk (Skenario 1/2) or hugging the narrow road edge (Baseline)
         const lateralZ = cfg.hasSidewalk
           ? -(CORRIDOR.roadWidthM / 2 + CORRIDOR.sidewalkWidthM * 0.5 + 0.24) + ped.lateralJitterM * 0.18
-          : -(CORRIDOR.roadWidthM / 2 + 0.08) + ped.lateralJitterM * 0.08;
+          : ped.side * (CORRIDOR.roadWidthM / 2 + (cfg.hasOffstreet ? 0.12 : 0.02)) + ped.lateralJitterM * 0.08;
         const frame = sampleCorridorFrame(ped.xM, lateralZ);
         const lookFrame = sampleCorridorFrame(
           Math.max(0, Math.min(CORRIDOR.lengthM, ped.xM + ped.dir * 18)),

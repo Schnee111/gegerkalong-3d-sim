@@ -1,5 +1,6 @@
 import {
   AVERAGE_EMP,
+  BASELINE_STATIC_OBSTACLES,
   CORRIDOR,
   SCENARIOS,
   VEHICLE_PROFILES,
@@ -272,26 +273,72 @@ export class TrafficEngine {
         const gap = (other.xM - v.xM) * v.dir - (other.lengthM * 0.5 + v.lengthM * 0.5);
 
         // On real 3.8 m Jl. Gegerkalong Tengah, opposing vehicles must crawl & edge onto left shoulder
-        if (opposing && gap > -3 && gap < 14 && v.kind !== 'Motor' && other.kind !== 'Motor') {
-          headOnSqueeze = true;
-          desiredSpeed = Math.min(desiredSpeed, 1.35);
+        if (opposing && gap > -3 && gap < 14) {
+          if (v.kind !== 'Motor' && other.kind !== 'Motor') {
+            headOnSqueeze = true;
+            desiredSpeed = Math.min(desiredSpeed, 1.35);
+          } else if (gap < 9 && (v.kind !== 'Motor' || other.kind !== 'Motor')) {
+            // Multi-class caution when a car passes an opposing motorcycle on a 3.8 m narrow road
+            desiredSpeed = Math.min(desiredSpeed, v.kind === 'Motor' ? 5.2 : 4.2);
+          }
         }
 
         if (!sameLane && !narrowRoadFriction) continue;
 
+        const isStoppedOnStreetMotor =
+          other.stopType === 'onstreet' &&
+          other.stopPhase === 'stopped' &&
+          other.kind === 'Motor';
+
         if (gap > -0.4 && gap < minGap) {
           if (sameLane) {
-            minGap = Math.max(0, gap);
-            leaderSpeed = other.speedMs;
+            if (isStoppedOnStreetMotor) {
+              // A parked scooter narrows the 3.8 m curb rather than completely deadlocking the lane
+              if (gap < 11) {
+                desiredSpeed = Math.min(desiredSpeed, v.kind === 'Motor' ? 2.4 : 1.15);
+              }
+            } else {
+              minGap = Math.max(0, gap);
+              leaderSpeed = other.speedMs;
+            }
           } else if (narrowRoadFriction && gap < 22) {
             // Opposing traffic squeezing past an on-street blocker on a 3.8 m narrow street slows sharply
-            desiredSpeed = Math.min(desiredSpeed, v.kind === 'Motor' ? 0.95 : 0.45);
+            if (isStoppedOnStreetMotor) {
+              desiredSpeed = Math.min(desiredSpeed, v.kind === 'Motor' ? 3.2 : 1.9);
+            } else {
+              desiredSpeed = Math.min(desiredSpeed, v.kind === 'Motor' ? 0.95 : 0.45);
+            }
+          }
+        }
+      }
+
+      // Baseline static pinch-point friction from 15 parked scooters & 3 gerobak PKL along the 3.8 m curb
+      let staticPinchNudgeZ = 0;
+      if (!cfg.hasOffstreet) {
+        for (const obs of BASELINE_STATIC_OBSTACLES) {
+          const obsGap = (obs.xM - v.xM) * v.dir;
+          if (obsGap > -2.5 && obsGap < 9.5) {
+            const sameSide = obs.side === v.lane;
+            if (sameSide) {
+              const capMs =
+                obs.kind === 'gerobak'
+                  ? v.kind === 'Motor'
+                    ? 3.8
+                    : 2.1
+                  : v.kind === 'Motor'
+                  ? 4.6
+                  : 2.8;
+              desiredSpeed = Math.min(desiredSpeed, capMs);
+              staticPinchNudgeZ = obs.side === -1 ? 0.24 : -0.24;
+            } else if (v.kind !== 'Motor') {
+              desiredSpeed = Math.min(desiredSpeed, obs.kind === 'gerobak' ? 3.4 : 4.4);
+            }
           }
         }
       }
 
       // Smooth lateral positioning (Lajur Kiri):
-      let cruiseZ = 0;
+      let cruiseZ = staticPinchNudgeZ;
       if (approachingOffstreet) {
         cruiseZ = this.getStopLateralOffset(v) * 0.45;
       } else if (!cfg.twoWay) {
@@ -301,13 +348,20 @@ export class TrafficEngine {
       }
       v.zOffsetM += (cruiseZ - v.zOffsetM) * Math.min(1, dt * 4.5);
 
-      // Pedestrian crowd friction when no sidewalk exists (Baseline)
+      // Pedestrian side friction: only affects same-side lane, stronger in Baseline (curb blocked by clutter)
       if (!cfg.hasSidewalk) {
         const inPasarZone = v.xM >= CORRIDOR.pasar.frontStartM - 6 && v.xM <= CORRIDOR.pasar.hallEndM + 4;
         for (const ped of this.pedestrians) {
+          if (ped.side !== v.lane) continue;
           const pedGap = (ped.xM - v.xM) * v.dir;
-          if (pedGap > -1.5 && pedGap < 7.0) {
-            desiredSpeed = Math.min(desiredSpeed, inPasarZone ? 1.8 : 2.9);
+          if (pedGap > -1.2 && pedGap < 7.0) {
+            if (!cfg.hasOffstreet) {
+              // Baseline: parked scooters & gerobak push pedestrians onto the 3.8 m asphalt
+              desiredSpeed = Math.min(desiredSpeed, inPasarZone ? 1.8 : 2.9);
+            } else if (inPasarZone) {
+              // Skenario 1 & 2: curb clear of illegal parking, mild caution only around Pasar crowd
+              desiredSpeed = Math.min(desiredSpeed, v.kind === 'Motor' ? 5.4 : 4.2);
+            }
             break;
           }
         }
@@ -447,6 +501,8 @@ export class TrafficEngine {
         id: i + 1,
         xM,
         dir: Math.random() < 0.5 ? 1 : -1,
+        // 60% sisi Timur (-1, arah Pasar/UNPAS) & 40% sisi Barat (+1, sisi kos/ruko)
+        side: i % 5 < 3 ? -1 : 1,
         speedMs: isPasarCrowd ? 0.8 + Math.random() * 0.35 : 1.05 + Math.random() * 0.45,
         lateralJitterM: (Math.random() - 0.5) * 0.65,
         shirtHex: PED_SHIRTS[i % PED_SHIRTS.length]
@@ -508,8 +564,17 @@ export class TrafficEngine {
   ): void {
     const cfg = SCENARIOS[this.scenario];
     const startM = customXM !== undefined ? customXM : dir === 1 ? -4 : CORRIDOR.lengthM + 4;
-    let willStop = Math.random() < this.params.pStop / 100;
-    const profile = this.pickProfile(willStop && Math.random() < 0.18);
+    const baseProfile = this.pickProfile(false);
+    // Selaras SimPy CRN (3,5% motor vs 11% roda 4): peluang berhenti motor ~0,32x roda 4
+    const stopProb =
+      baseProfile.kind === 'Motor'
+        ? (this.params.pStop / 100) * 0.32
+        : this.params.pStop / 100;
+    let willStop = Math.random() < stopProb;
+    const profile =
+      willStop && baseProfile.kind !== 'Motor' && Math.random() < 0.22
+        ? this.pickProfile(true)
+        : baseProfile;
 
     let stopType: StopType = 'none';
     let stopTargetM = -1;
