@@ -17,8 +17,24 @@ Proyek simulasi lalu lintas mikroskopis 3D berbasis **Vite + TypeScript + Three.
 - **Profil Elevasi:** Data elevasi nyata **Open-Meteo DEM** Bandung Utara (turun 26 m dari **901 m dpl** di Simpang Girang → **889 m dpl** di Pasar Gegerkalong → **875 m dpl** di Simpang Hilir).
 - **Lalu Lintas & Volume:**
   - Menggunakan aturan **lajur kiri Indonesia** (arah Selatan Girang → Pasar di sisi Timur; arah Utara Pasar → Girang di sisi Barat).
-  - **Komposisi armada** mengacu data **ERI Korlantas Polri / BPS Kota Bandung (2024)**: 75% sepeda motor (`emp = 0,40`), 16% mobil penumpang (`1,00`), 5% angkot (`1,00`), 4% mobil boks/muat pasar (`1,20`) dengan rata-rata tertimbang `0,558 smp/kend.`.
-  - Menyediakan dua preset kalibrasi satu klik: **Riil Puncak (`850 kend./jam ≈ 474 smp/jam`)** berdasarkan limpahan arus Simpang Girang (Firdaus, UPI 2018) & kapasitas MKJI/PKJI ruas 3,8 m, serta **Preset LKM-2 (`350 kend./jam`)** untuk perbandingan langsung terhadap benchmark **SimPy 10 replikasi**.
+  - **Komposisi armada** mengacu data **BPS Prov. Jawa Barat (2024: 71,24% motor di Kota Bandung)** & survei moda kampus (**JPR ITS, 2024**): 75% sepeda motor (`emp = 0,40`), 16% mobil penumpang (`1,00`), 5% angkot (`1,00`), 4% mobil boks/muat pasar (`1,20`) dengan rata-rata tertimbang `0,558 smp/kend.`.
+  - Menyediakan tiga preset kalibrasi satu klik: **Puncak (`850 kend./jam ≈ 474 smp/jam`)** berdasarkan limpahan arus Simpang Girang (Firdaus, UPI 2018), **SimPy CRN (`540 kend./jam`)** sesuai kalibrasi antrean multi-kelas *Common Random Numbers*, serta **LKM-2 (`350 kend./jam`)** untuk perbandingan asumsi awal LKM-2.
+
+## Benchmark Kalibrasi SimPy CRN (`scripts/sim_gagerkalong_v2.py`)
+
+Model antrean diskret SimPy dikalibrasi pada segmen utara (`355 m`, lebar `3,8 m`, `λ = 540 kend./jam`, `75% motor / 25% roda 4`) dengan **Common Random Numbers (10 replikasi × 2 jam, *warm-up* 10 menit)**, tunda konflik papasan dua arah (`9–17 dtk`), serta hambatan samping pasar/bongkar muat (**PKJI 2023**, **SainTekA 2025**, **MRK Polinema 2026**, kecepatan Kota Bandung **18,5 km/jam — FPIPS UPI / TomTom**):
+
+| Skenario | Waktu Tunggu (dtk) | Antrean Maks (kend.) | Keluar / Jam (kend./jam) |
+| :--- | ---: | ---: | ---: |
+| **Baseline** (2 arah + parkir badan jalan) | **534** | **156** | **468** |
+| **Skenario 1** (2 arah + parkir KPAD & muat luar sibuk) | **52** (-90,3%) | **27** (-82,7%) | **537** (+14,7%) |
+| **Skenario 2** (1 arah bergantian + Skenario 1 + petugas) | **1** (-99,8%) | **4** (-97,4%) | **538** (+15,0%) |
+
+Untuk mereproduksi hasil benchmark SimPy secara lokal (membutuhkan Python 3 + `simpy`):
+
+```bash
+python3 scripts/sim_gagerkalong_v2.py
+```
 
 ## Struktur Proyek
 
@@ -29,11 +45,13 @@ gegerkalong-3d-sim/
 ├── package.json                   # Skrip dev, typecheck, build modular & single-file
 ├── tsconfig.json                  # Konfigurasi TypeScript strict
 ├── vite.config.ts                 # Konfigurasi bundler Vite
+├── scripts/
+│   └── sim_gagerkalong_v2.py      # Skrip reproduksi benchmark SimPy CRN multi-kelas (540/jam)
 └── src/
     ├── main.ts                    # Entrypoint aplikasi & loop simulasi
     ├── config/
     │   ├── osmCorridorData.ts     # Data geospasial OSM + elevasi Open-Meteo & landmark
-    │   └── scenarios.ts           # Definisi 3 skenario, preset volume, dimensi koridor, kamera
+    │   └── scenarios.ts           # Definisi 3 skenario, preset volume, benchmark SimPy CRN, kamera
     ├── simulation/
     │   ├── types.ts               # Kontrak tipe agen, metrik PKJI/MKJI, dan snapshot
     │   └── trafficEngine.ts       # Mesin car-following lajur kiri, FIFO spillback, hambatan samping
@@ -46,7 +64,7 @@ gegerkalong-3d-sim/
     │   ├── vehicleFactory.ts      # Model 3D motor, mobil, angkot, boks muat & pejalan kaki + dispose
     │   └── trafficScene.ts        # Renderer WebGL, POV Kendaraan/Pejalan, Tur, WASD, kompas Utara
     ├── ui/
-    │   ├── chartsController.ts    # Grafik antrean real-time & benchmark SimPy 10 replikasi
+    │   ├── chartsController.ts    # Grafik antrean real-time & benchmark SimPy CRN 10 replikasi
     │   └── hudController.ts       # Pengendali HUD, POV banner, rail susur jalan, preset & snapshot
     └── styles/
         └── main.css               # Gaya studio arsitektural terang (kontras tinggi untuk proyektor)
