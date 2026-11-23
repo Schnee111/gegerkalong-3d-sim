@@ -17,18 +17,18 @@ Proyek simulasi lalu lintas mikroskopis 3D berbasis **Vite + TypeScript + Three.
 - **Profil Elevasi:** Data elevasi nyata **Open-Meteo DEM** Bandung Utara (turun 26 m dari **901 m dpl** di Simpang Girang → **889 m dpl** di Pasar Gegerkalong → **875 m dpl** di Simpang Hilir).
 - **Lalu Lintas & Volume:**
   - Menggunakan aturan **lajur kiri Indonesia** (arah Selatan Girang → Pasar di sisi Timur; arah Utara Pasar → Girang di sisi Barat).
-  - **Komposisi armada** mengacu data **BPS Prov. Jawa Barat (2024: 71,24% motor di Kota Bandung)** & survei moda kampus (**JPR ITS, 2024**): 75% sepeda motor (`emp = 0,40`), 16% mobil penumpang (`1,00`), 5% angkot (`1,00`), 4% mobil boks/muat pasar (`1,20`) dengan rata-rata tertimbang `0,558 smp/kend.`.
+  - **Komposisi armada** mengacu data **BPS (2025: 70,9% motor dari 1.527.139 unit di Kota Bandung)** & survei moda kampus (**JPR ITS, 2024**): 75% sepeda motor (`emp = 0,40`), 16% mobil penumpang (`1,00`), 5% angkot (`1,00`), 4% mobil boks/muat pasar (`1,20`) dengan rata-rata tertimbang `0,558 smp/kend.`.
   - Menyediakan tiga preset kalibrasi satu klik: **Puncak (`850 kend./jam ≈ 474 smp/jam`)** berdasarkan limpahan arus Simpang Girang (Firdaus, UPI 2018), **SimPy CRN (`540 kend./jam`)** sesuai kalibrasi antrean multi-kelas *Common Random Numbers*, serta **LKM-2 (`350 kend./jam`)** untuk perbandingan asumsi awal LKM-2.
 
 ## Benchmark Kalibrasi SimPy CRN (`scripts/sim_gagerkalong_v2.py`)
 
-Model antrean diskret SimPy dikalibrasi pada segmen utara (`355 m`, lebar `3,8 m`, `λ = 540 kend./jam`, `75% motor / 25% roda 4`) dengan **Common Random Numbers (10 replikasi × 2 jam, *warm-up* 10 menit)**, tunda konflik papasan dua arah (`9–17 dtk`), serta hambatan samping pasar/bongkar muat (**PKJI 2023**, **SainTekA 2025**, **MRK Polinema 2026**, kecepatan Kota Bandung **18,5 km/jam — FPIPS UPI / TomTom**):
+Model antrean diskret SimPy dikalibrasi pada segmen utara (`355 m`, lebar `3,8 m`, `λ = 540 kend./jam`, `75% motor / 25% roda 4`) dengan **Common Random Numbers (10 replikasi × 2 jam, *warm-up* 10 menit)**, tunda konflik papasan dua arah (`12–22 dtk` pada aspal efektif `~3,2 m` hasil fotogrametri Street View), serta hambatan samping pasar/bongkar muat (**PKJI 2023**, **SainTekA 2025**, **MRK Polinema 2026**, kecepatan Kota Bandung **18,5 km/jam — FPIPS UPI / TomTom**):
 
-| Skenario | Waktu Tunggu (dtk) | Antrean Maks (kend.) | Keluar / Jam (kend./jam) |
+| Skenario | Waktu Tunggu Antrean (dtk) | Antrean Maks (kend.) | Keluar / Jam (kend./jam) |
 | :--- | ---: | ---: | ---: |
-| **Baseline** (2 arah + parkir badan jalan) | **534** | **156** | **468** |
-| **Skenario 1** (2 arah + parkir KPAD & muat luar sibuk) | **52** (-90,3%) | **27** (-82,7%) | **537** (+14,7%) |
-| **Skenario 2** (1 arah bergantian + Skenario 1 + petugas) | **1** (-99,8%) | **4** (-97,4%) | **538** (+15,0%) |
+| **Baseline** (2 arah + parkir badan jalan, aspal ~3,2 m) | **1.182** (~19,7 mnt) | **338** | **371** |
+| **Skenario 1** (2 arah + parkir KPAD & muat luar sibuk) | **566** (-52,1%) | **177** (-47,6%) | **454** (+22,4%) |
+| **Skenario 2** (1 arah bergantian + Skenario 1 + petugas) | **1** (-99,9%) | **4** (-98,8%) | **538** (+45,0%) |
 
 Untuk mereproduksi hasil benchmark SimPy secara lokal (membutuhkan Python 3 + `simpy`):
 
